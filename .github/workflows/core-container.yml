@@ -1,0 +1,143 @@
+# Build -> SBOM -> Trivy scan -> (push -> attest)
+# The image is scanned while it only exists on the runner; nothing is pushed
+# unless the scan passes.
+#
+# Caller job must grant: contents: read, packages: write,
+#                        id-token: write, attestations: write
+name: core-container
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: Full image name without tag. Defaults to ghcr.io/<owner>/<repo>
+        type: string
+        default: ''
+      context:
+        type: string
+        default: '.'
+      dockerfile:
+        description: Defaults to <context>/Dockerfile
+        type: string
+        default: ''
+      build-args:
+        type: string
+        default: ''
+      download-artifact:
+        description: Artifact to download before building (e.g. a prebuilt dist/)
+        type: string
+        default: ''
+      download-path:
+        description: Where to put the downloaded artifact
+        type: string
+        default: ''
+      push:
+        type: boolean
+        default: false
+      attest:
+        description: >
+          Create provenance + SBOM attestations for the pushed image.
+          Requires a public repo or GitHub Enterprise Cloud.
+        type: boolean
+        default: false
+      trivy-severity:
+        type: string
+        default: CRITICAL,HIGH
+      runs-on:
+        type: string
+        default: ubuntu-latest
+    outputs:
+      image:
+        description: Image name without tag
+        value: ${{ jobs.container.outputs.image }}
+      digest:
+        description: Pushed digest (empty when push is false)
+        value: ${{ jobs.container.outputs.digest }}
+
+permissions:
+  contents: read
+
+jobs:
+  container:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download build output
+        if: inputs.download-artifact != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.download-artifact }}
+          path: ${{ inputs.download-path }}
+
+      - name: Resolve image name
+        id: name
+        env:
+          IMAGE_NAME: ${{ inputs.image-name }}
+          REPO: ${{ github.repository }}
+        run: |
+          image="${IMAGE_NAME:-ghcr.io/$REPO}"
+          echo "image=${image,,}" >> "$GITHUB_OUTPUT"   # registries require lowercase
+
+      - name: Build (local)
+        id: build
+        uses: my-org/pipeline-actions/core/container-build@core/v1
+        with:
+          image-name: ${{ steps.name.outputs.image }}
+          context: ${{ inputs.context }}
+          dockerfile: ${{ inputs.dockerfile }}
+          build-args: ${{ inputs.build-args }}
+          push: 'false'
+
+      - name: SBOM
+        id: sbom
+        uses: my-org/pipeline-actions/core/sbom@core/v1
+        with:
+          image: ${{ steps.build.outputs.local-ref }}
+          output-file: container-sbom.cdx.json
+          artifact-name: container-sbom
+
+      - name: Vulnerability scan
+        uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+        with:
+          scan-type: image
+          target: ${{ steps.build.outputs.local-ref }}
+          severity: ${{ inputs.trivy-severity }}
+
+      - name: Push
+        id: push
+        if: inputs.push
+        uses: my-org/pipeline-actions/core/container-build@core/v1
+        with:
+          image-name: ${{ steps.name.outputs.image }}
+          context: ${{ inputs.context }}
+          dockerfile: ${{ inputs.dockerfile }}
+          build-args: ${{ inputs.build-args }}
+          push: 'true'   # layers come from the gha cache populated above
+
+      - name: Attest build provenance
+        if: inputs.push && inputs.attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.name.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        if: inputs.push && inputs.attest
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ${{ steps.name.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: ${{ steps.sbom.outputs.path }}
+          push-to-registry: true

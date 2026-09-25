@@ -1,0 +1,82 @@
+# Release one domain of the library.
+# Actions -> release -> Run workflow -> pick domain + version.
+#   core + 1.3.0  creates core/v1.3.0 and moves core/v1
+#
+# When you cut a new MAJOR of core, update the @core/vN refs inside the
+# vue-* and c-* workflows in a separate PR and release those domains too.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Which part of the library to release
+        type: choice
+        required: true
+        options:
+          - core
+          - vue
+          - c
+      version:
+        description: Version without the v (e.g. 1.3.0)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      DOMAIN: ${{ inputs.domain }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Validate
+        id: validate
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.3"; exit 1
+          fi
+          tag="$DOMAIN/v$VERSION"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::$tag already exists"; exit 1
+          fi
+          prev=$(git tag --list "$DOMAIN/v*.*.*" --sort=-v:refname | head -n1)
+          if [ -n "$prev" ]; then
+            newest=$(printf '%s\n%s\n' "${prev#"$DOMAIN"/v}" "$VERSION" | sort -V | tail -n1)
+            if [ "$newest" != "$VERSION" ]; then
+              echo "::error::$VERSION is not newer than $prev"; exit 1
+            fi
+          fi
+          {
+            echo "tag=$tag"
+            echo "major=$DOMAIN/v${VERSION%%.*}"
+            echo "prev=$prev"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Tag and move major
+        env:
+          TAG: ${{ steps.validate.outputs.tag }}
+          MAJOR: ${{ steps.validate.outputs.major }}
+        run: |
+          git tag "$TAG"
+          git tag -f "$MAJOR"
+          git push origin "$TAG"
+          git push -f origin "$MAJOR"
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.validate.outputs.tag }}
+          PREV: ${{ steps.validate.outputs.prev }}
+        run: |
+          args=(--title "$DOMAIN v$VERSION" --generate-notes)
+          [ -n "$PREV" ] && args+=(--notes-start-tag "$PREV")
+          gh release create "$TAG" "${args[@]}"

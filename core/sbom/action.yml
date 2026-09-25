@@ -1,0 +1,59 @@
+name: SBOM
+description: >
+  Generate an SBOM with Syft for a container image or a directory.
+  Note: for C/C++ build output Syft can only see what carries package metadata
+  (e.g. Conan/vcpkg manifests, dpkg databases). Hand-vendored or system-linked
+  libraries will not appear unless declared in a manifest.
+inputs:
+  image:
+    description: Image reference to catalog (set this OR path)
+    default: ''
+  path:
+    description: Directory to catalog (set this OR image)
+    default: ''
+  format:
+    description: SBOM format (cyclonedx-json or spdx-json)
+    default: cyclonedx-json
+  output-file:
+    description: Where to write the SBOM
+    default: sbom.cdx.json
+  artifact-name:
+    description: Upload the SBOM as a workflow artifact with this name (empty to skip)
+    default: ''
+outputs:
+  path:
+    description: Path to the generated SBOM
+    value: ${{ inputs.output-file }}
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        DIR: ${{ inputs.path }}
+      run: |
+        if [ -n "$IMAGE" ] && [ -n "$DIR" ]; then
+          echo "::error::Set either image or path, not both"; exit 1
+        fi
+        if [ -z "$IMAGE" ] && [ -z "$DIR" ]; then
+          echo "::error::Set image or path"; exit 1
+        fi
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+      with:
+        image: ${{ inputs.image }}
+        path: ${{ inputs.path }}
+        format: ${{ inputs.format }}
+        output-file: ${{ inputs.output-file }}
+        upload-artifact: false
+        dependency-snapshot: false
+
+    - name: Upload SBOM
+      if: inputs.artifact-name != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output-file }}
+        if-no-files-found: error

@@ -1,0 +1,49 @@
+name: Sonar scan
+description: >
+  Run SonarQube (Server or Cloud) analysis. Skips with a notice when no token is
+  provided, so pipelines work in repos that haven't been onboarded to Sonar yet.
+  The checkout should use fetch-depth 0 so Sonar can attribute new code.
+inputs:
+  token:
+    description: SONAR_TOKEN
+    default: ''
+  host-url:
+    description: SonarQube Server URL. Leave empty for SonarQube Cloud
+    default: ''
+  project-base-dir:
+    description: Directory containing sonar-project.properties
+    default: '.'
+  args:
+    description: Extra scanner arguments, e.g. -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+    default: ''
+  require-token:
+    description: Fail instead of skipping when no token is provided
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Check for Sonar token
+      id: check
+      shell: bash
+      env:
+        HAS_TOKEN: ${{ inputs.token != '' }}
+        REQUIRE: ${{ inputs.require-token }}
+      run: |
+        if [ "$HAS_TOKEN" = "true" ]; then
+          echo "run=true" >> "$GITHUB_OUTPUT"
+        elif [ "$REQUIRE" = "true" ]; then
+          echo "::error::SONAR_TOKEN is required but was not provided"; exit 1
+        else
+          echo "::notice title=Sonar skipped::No SONAR_TOKEN provided; skipping analysis."
+          echo "run=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: SonarQube scan
+      if: steps.check.outputs.run == 'true'
+      uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+      env:
+        SONAR_TOKEN: ${{ inputs.token }}
+        SONAR_HOST_URL: ${{ inputs.host-url }}
+      with:
+        projectBaseDir: ${{ inputs.project-base-dir }}
+        args: ${{ inputs.args }}
