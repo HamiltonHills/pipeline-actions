@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Keeps the SHA-pinned third-party actions current. Dependabot updates
+  # both the SHA and the "# vX.Y.Z" comment.
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /core/container-build
+      - /core/trivy-scan
+      - /core/sbom
+      - /core/sonar-scan
+      - /core/deploy
+      - /vue/build
+      - /c/build
+      - /c/package
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+    # Our own refs (@core/v1 etc.) are managed by the release process.
+    ignore:
+      - dependency-name: my-org/pipeline-actions*
+
+  - package-ecosystem: npm
+    directory: /test-fixtures/vue-app
+    schedule:
+      interval: monthly
+    groups:
+      fixture:
+        patterns: ['*']

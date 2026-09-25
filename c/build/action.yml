@@ -1,0 +1,71 @@
+name: C build
+description: >
+  Configure, build and test a CMake project. Always exports
+  compile_commands.json, which Sonar's C/C++ analysis requires.
+inputs:
+  source-dir:
+    description: Directory containing CMakeLists.txt
+    default: '.'
+  build-dir:
+    description: Build directory (relative to the workspace)
+    default: build
+  build-type:
+    description: CMAKE_BUILD_TYPE
+    default: Release
+  cmake-args:
+    description: Extra space-separated arguments for the configure step
+    default: ''
+  apt-packages:
+    description: Space-separated apt packages to install first (e.g. libssl-dev)
+    default: ''
+  run-tests:
+    description: Run ctest after building
+    default: 'true'
+outputs:
+  build-dir:
+    description: Absolute path to the build directory
+    value: ${{ steps.configure.outputs.build-dir }}
+  compile-commands:
+    description: Absolute path to compile_commands.json
+    value: ${{ steps.configure.outputs.build-dir }}/compile_commands.json
+runs:
+  using: composite
+  steps:
+    - name: Install system packages
+      if: inputs.apt-packages != ''
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.apt-packages }}
+      run: |
+        read -ra pkgs <<< "$PACKAGES"
+        sudo apt-get update -q
+        sudo apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+    - name: Configure
+      id: configure
+      shell: bash
+      env:
+        SRC: ${{ inputs.source-dir }}
+        BUILD: ${{ inputs.build-dir }}
+        BUILD_TYPE: ${{ inputs.build-type }}
+        CMAKE_EXTRA_ARGS: ${{ inputs.cmake-args }}
+      run: |
+        read -ra extra <<< "$CMAKE_EXTRA_ARGS"
+        cmake -S "$SRC" -B "$BUILD" \
+          -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          "${extra[@]}"
+        echo "build-dir=$(cd "$BUILD" && pwd)" >> "$GITHUB_OUTPUT"
+
+    - name: Build
+      shell: bash
+      env:
+        BUILD: ${{ inputs.build-dir }}
+      run: cmake --build "$BUILD" --parallel
+
+    - name: Test
+      if: inputs.run-tests == 'true'
+      shell: bash
+      env:
+        BUILD: ${{ inputs.build-dir }}
+      run: ctest --test-dir "$BUILD" --output-on-failure

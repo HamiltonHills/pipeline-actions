@@ -1,0 +1,170 @@
+# Complete pipeline for a CMake-based C project:
+#   build + test + sonar + package + sbom + trivy  ->  (on tags) GitHub release
+#
+# Caller job must grant: contents: write (for releases), id-token: write,
+#                        attestations: write
+name: c-pipeline
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        type: string
+        required: true
+      source-dir:
+        type: string
+        default: '.'
+      build-type:
+        type: string
+        default: Release
+      cmake-args:
+        type: string
+        default: ''
+      apt-packages:
+        type: string
+        default: ''
+      trivy-severity:
+        type: string
+        default: CRITICAL,HIGH
+      sonar-args:
+        type: string
+        default: ''
+      release:
+        description: Publish a GitHub release. Only valid when triggered by a v* tag
+        type: boolean
+        default: false
+      release-environment:
+        description: Environment gating the release job (created automatically if missing)
+        type: string
+        default: release
+      attest:
+        description: Requires a public repo or GitHub Enterprise Cloud
+        type: boolean
+        default: false
+    secrets:
+      SONAR_TOKEN:
+        required: false
+      SONAR_HOST_URL:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.0.0-${GITHUB_SHA::7}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        id: build
+        uses: my-org/pipeline-actions/c/build@c/v1
+        with:
+          source-dir: ${{ inputs.source-dir }}
+          build-type: ${{ inputs.build-type }}
+          cmake-args: ${{ inputs.cmake-args }}
+          apt-packages: ${{ inputs.apt-packages }}
+
+      - uses: my-org/pipeline-actions/core/sonar-scan@core/v1
+        with:
+          token: ${{ secrets.SONAR_TOKEN }}
+          host-url: ${{ secrets.SONAR_HOST_URL }}
+          project-base-dir: ${{ inputs.source-dir }}
+          args: -Dsonar.cfamily.compile-commands=${{ steps.build.outputs.compile-commands }} ${{ inputs.sonar-args }}
+
+      - name: Source scan (vulnerable manifests, committed secrets)
+        uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+        with:
+          scan-type: fs
+          target: ${{ inputs.source-dir }}
+          severity: ${{ inputs.trivy-severity }}
+
+      - name: Package
+        id: package
+        uses: my-org/pipeline-actions/c/package@c/v1
+        with:
+          build-dir: ${{ steps.build.outputs.build-dir }}
+          name: ${{ inputs.package-name }}
+          version: ${{ steps.version.outputs.version }}
+
+      - name: SBOM
+        id: sbom
+        uses: my-org/pipeline-actions/core/sbom@core/v1
+        with:
+          path: ${{ steps.package.outputs.staging-dir }}
+          output-file: dist/${{ inputs.package-name }}-${{ steps.version.outputs.version }}.cdx.json
+
+      - name: SBOM scan
+        uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+        with:
+          scan-type: sbom
+          target: ${{ steps.sbom.outputs.path }}
+          severity: ${{ inputs.trivy-severity }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: c-package
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: inputs.release
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.release-environment }}
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Require a version tag
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::release=true is only valid for v* tag pushes (got $GITHUB_REF)"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: c-package
+          path: dist
+
+      - name: Attest build provenance
+        if: inputs.attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*.tar.gz
+
+      - name: Attest SBOM
+        if: inputs.attest
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: dist/*.tar.gz
+          sbom-path: dist/${{ inputs.package-name }}-${{ needs.build.outputs.version }}.cdx.json
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$REPO" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

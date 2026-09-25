@@ -1,0 +1,70 @@
+# Environment-gated deploy. `environment:` resolves in the CALLER's repo, so
+# each team's protection rules (required reviewers, branch rules, wait timers)
+# apply. Deploys to the same environment are serialized, never cancelled.
+#
+# Caller job must grant: contents: read, packages: read,
+#                        id-token: write, attestations: read
+name: core-deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      deploy-script:
+        description: Path in the caller's repo to the deploy script
+        type: string
+        default: deploy/deploy.sh
+      image:
+        description: Image pinned by digest (name@sha256:...)
+        type: string
+        default: ''
+      verify-attestation:
+        description: Requires the image to have been built with attest=true
+        type: boolean
+        default: false
+      runs-on:
+        type: string
+        default: ubuntu-latest
+    secrets:
+      DEPLOY_TOKEN:
+        description: Optional credential exposed to the deploy script as DEPLOY_TOKEN
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs-on }}
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ github.repository }}-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+      id-token: write      # for OIDC login to your cloud from the deploy script
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Log in to GHCR (for attestation verification)
+        if: inputs.verify-attestation
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - uses: my-org/pipeline-actions/core/deploy@core/v1
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        with:
+          environment: ${{ inputs.environment }}
+          script: ${{ inputs.deploy-script }}
+          image: ${{ inputs.image }}
+          verify-attestation: ${{ inputs.verify-attestation }}

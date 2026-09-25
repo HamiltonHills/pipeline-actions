@@ -1,0 +1,58 @@
+name: C package
+description: >
+  Install a CMake build into a staging directory and package it as a tarball
+  with a SHA-256 checksum.
+inputs:
+  build-dir:
+    description: CMake build directory
+    default: build
+  name:
+    description: Package name
+    required: true
+  version:
+    description: Package version (e.g. 1.2.3 or 0.0.0-abc1234)
+    required: true
+  output-dir:
+    description: Where to write the tarball and checksum
+    default: dist
+outputs:
+  package-path:
+    description: Path to the .tar.gz
+    value: ${{ steps.pack.outputs.package }}
+  checksum-path:
+    description: Path to the .sha256 file
+    value: ${{ steps.pack.outputs.checksum }}
+  staging-dir:
+    description: Installed file tree (useful for SBOM generation)
+    value: ${{ steps.pack.outputs.staging }}
+runs:
+  using: composite
+  steps:
+    - name: Install and package
+      id: pack
+      shell: bash
+      env:
+        BUILD: ${{ inputs.build-dir }}
+        NAME: ${{ inputs.name }}
+        VERSION: ${{ inputs.version }}
+        OUT: ${{ inputs.output-dir }}
+      run: |
+        valid='^[A-Za-z0-9][A-Za-z0-9._+-]*$'
+        [[ "$NAME" =~ $valid ]] || { echo "::error::Invalid package name: $NAME"; exit 1; }
+        [[ "$VERSION" =~ $valid ]] || { echo "::error::Invalid version: $VERSION"; exit 1; }
+
+        base="$NAME-$VERSION-linux-$(uname -m)"
+        staging="$RUNNER_TEMP/staging/$base"
+        rm -rf "$staging" && mkdir -p "$staging" "$OUT"
+
+        cmake --install "$BUILD" --prefix "$staging"
+
+        tar -C "$(dirname "$staging")" -czf "$OUT/$base.tar.gz" "$base"
+        (cd "$OUT" && sha256sum "$base.tar.gz" > "$base.tar.gz.sha256")
+
+        {
+          echo "package=$OUT/$base.tar.gz"
+          echo "checksum=$OUT/$base.tar.gz.sha256"
+          echo "staging=$staging"
+        } >> "$GITHUB_OUTPUT"
+        echo "Packaged $OUT/$base.tar.gz"

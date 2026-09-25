@@ -1,0 +1,30 @@
+# Everything a Vue app team needs. PRs build, test, scan and analyze;
+# pushes to main also push the image and deploy to staging.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    uses: my-org/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v1
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      push-image: ${{ github.event_name == 'push' }}
+      deploy-environment: ${{ github.event_name == 'push' && 'staging' || '' }}
+      # Set to true on a public repo or GitHub Enterprise Cloud to sign
+      # provenance + SBOM and verify them before deploying.
+      attest: false
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
