@@ -1,0 +1,36 @@
+# Quick check of the vue/build action from this branch: lint + build the
+# fixture. No tests, no container, no scanning, no deploy.
+name: vue-build-test
+
+on:
+  pull_request:
+    paths:
+      - vue/**
+      - test-fixtures/vue-app/**
+      - .github/workflows/vue-build-test.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vue-build-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./vue/build
+        with:
+          working-directory: test-fixtures/vue-app
+          run-lint: 'true'
+          run-tests: 'false'
+          artifact-name: ''
+
+      - name: Build output exists
+        run: test -s test-fixtures/vue-app/dist/index.html
