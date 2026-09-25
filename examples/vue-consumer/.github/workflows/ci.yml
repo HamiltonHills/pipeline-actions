@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   pipeline:
-    uses: my-org/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v1
     permissions:
       contents: read
       packages: write

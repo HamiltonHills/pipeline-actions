@@ -13,7 +13,7 @@ unless the scan passes.
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: my-org/pipeline-actions/.github/workflows/core-container.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v1
 ```
 
 See [Examples](../examples.md) for a complete caller.
@@ -40,4 +40,4 @@ See [Examples](../examples.md) for a complete caller.
 | `image` | Image name without tag |
 | `digest` | Pushed digest (empty when push is false) |
 
-Source: [`.github/workflows/core-container.yml`](https://github.com/my-org/pipeline-actions/blob/main/.github/workflows/core-container.yml)
+Source: [`.github/workflows/core-container.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/.github/workflows/core-container.yml)

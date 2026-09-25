@@ -3,7 +3,7 @@
 Build a container image with Buildx and GitHub Actions layer caching. With push=false the image is loaded into the local Docker daemon so it can be scanned before anything is published. With push=true it is pushed and the digest is returned.
 
 ```yaml title="Usage"
-- uses: my-org/pipeline-actions/core/container-build@core/v1
+- uses: HamiltonHills/pipeline-actions/core/container-build@core/v1
   with:
     image-name: ...
 ```
@@ -12,7 +12,7 @@ Build a container image with Buildx and GitHub Actions layer caching. With push=
 
 | Name | Required | Default | Description |
 |---|---|---|---|
-| `image-name` | yes |  | Full image name without tag, e.g. ghcr.io/my-org/my-app (lowercase) |
+| `image-name` | yes |  | Full image name without tag, e.g. ghcr.io/hamiltonhills/my-app (lowercase) |
 | `context` | no | `.` | Build context directory |
 | `dockerfile` | no | `''` | Path to the Dockerfile. Defaults to &lt;context&gt;/Dockerfile |
 | `push` | no | `false` | Push to the registry (true) or load locally for scanning (false) |
@@ -30,4 +30,4 @@ Build a container image with Buildx and GitHub Actions layer caching. With push=
 | `local-ref` | First generated tag, usable for scanning a locally loaded image |
 | `tags` | Newline-separated list of all generated tags |
 
-Source: [`core/container-build/action.yml`](https://github.com/my-org/pipeline-actions/blob/main/core/container-build/action.yml)
+Source: [`core/container-build/action.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/core/container-build/action.yml)

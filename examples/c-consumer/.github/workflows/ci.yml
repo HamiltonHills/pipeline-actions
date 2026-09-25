@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   pipeline:
-    uses: my-org/pipeline-actions/.github/workflows/c-pipeline.yml@c/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/c-pipeline.yml@c/v1
     permissions:
       contents: write        # release job creates the GitHub release
       id-token: write

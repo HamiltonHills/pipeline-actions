@@ -1,8 +1,9 @@
 # Tests the library itself on every PR.
 #
 # Actions are referenced with ./ paths so the PR's own code is exercised.
-# (Reusable workflows reference released tags like @core/v1, so they are
-# covered by linting here and by the post-release smoke test.)
+# Reusable workflows reference released tags like @vue/v1, so the
+# test-vue-pipeline job runs the PR's vue-pipeline.yml but the *released*
+# actions inside it.
 #
 # Design rule that makes this work: composite actions never call sibling
 # actions. Only reusable workflows compose them.
@@ -93,6 +94,7 @@ jobs:
       - uses: ./vue/build
         with:
           working-directory: test-fixtures/vue-app
+          run-lint: 'true'
           artifact-name: ''
 
       - name: Coverage was produced for Sonar
@@ -132,6 +134,23 @@ jobs:
           # SPA fallback: unknown routes must serve index.html
           curl -sf http://localhost:8080/some/client/route | grep -q 'id="app"'
           docker rm -f app
+
+  # Lint + build the fixture through vue-pipeline.yml. No tests, no image,
+  # no deploy; Sonar skips because no token is passed.
+  test-vue-pipeline:
+    uses: ./.github/workflows/vue-pipeline.yml
+    # GitHub checks the nested container/deploy jobs' permissions even when
+    # they are skipped, so grant what the workflow header asks for.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      working-directory: test-fixtures/vue-app
+      run-lint: true
+      run-tests: false
+      container: false
 
   test-deploy:
     runs-on: ubuntu-latest

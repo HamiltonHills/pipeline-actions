@@ -20,7 +20,7 @@ updates:
         patterns: ['*']
     # Our own refs (@core/v1 etc.) are managed by the release process.
     ignore:
-      - dependency-name: my-org/pipeline-actions*
+      - dependency-name: HamiltonHills/pipeline-actions*
 
   - package-ecosystem: npm
     directory: /test-fixtures/vue-app

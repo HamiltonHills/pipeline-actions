@@ -3,7 +3,7 @@
 Install a CMake build into a staging directory and package it as a tarball with a SHA-256 checksum.
 
 ```yaml title="Usage"
-- uses: my-org/pipeline-actions/c/package@c/v1
+- uses: HamiltonHills/pipeline-actions/c/package@c/v1
   with:
     name: ...
     version: ...
@@ -26,4 +26,4 @@ Install a CMake build into a staging directory and package it as a tarball with 
 | `checksum-path` | Path to the .sha256 file |
 | `staging-dir` | Installed file tree (useful for SBOM generation) |
 
-Source: [`c/package/action.yml`](https://github.com/my-org/pipeline-actions/blob/main/c/package/action.yml)
+Source: [`c/package/action.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/c/package/action.yml)

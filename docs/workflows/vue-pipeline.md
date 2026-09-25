@@ -3,7 +3,7 @@
 Complete pipeline for a Vue/Vite app served from a container:
 
 ```text
-build + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
+build + lint + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
 ```
 
 !!! note "Permissions the calling job must grant"
@@ -12,7 +12,7 @@ build + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: my-org/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v1
 ```
 
 See [Examples](../examples.md) for a complete caller.
@@ -23,6 +23,10 @@ See [Examples](../examples.md) for a complete caller.
 |---|---|---|---|---|
 | `working-directory` | string | no | `.` |  |
 | `node-version` | string | no | `22` |  |
+| `run-lint` | boolean | no | `false` | Run the lint script before testing |
+| `lint-script` | string | no | `lint` |  |
+| `run-tests` | boolean | no | `true` |  |
+| `container` | boolean | no | `true` | Build, scan and optionally push the image. false stops after the build job (no image, no deploy) |
 | `image-name` | string | no | `''` | Defaults to ghcr.io/&lt;owner&gt;/&lt;repo&gt; |
 | `push-image` | boolean | no | `false` | Push the image (typically only on pushes to main or tags) |
 | `attest` | boolean | no | `false` | Requires a public repo or GitHub Enterprise Cloud |
@@ -46,4 +50,4 @@ See [Examples](../examples.md) for a complete caller.
 | `image` |  |
 | `digest` |  |
 
-Source: [`.github/workflows/vue-pipeline.yml`](https://github.com/my-org/pipeline-actions/blob/main/.github/workflows/vue-pipeline.yml)
+Source: [`.github/workflows/vue-pipeline.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/.github/workflows/vue-pipeline.yml)

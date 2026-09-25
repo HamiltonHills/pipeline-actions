@@ -1,7 +1,7 @@
 site_name: pipeline-actions
 site_description: Shared GitHub Actions for building, scanning and shipping containers, Vue apps and C projects.
-repo_url: https://github.com/my-org/pipeline-actions
-repo_name: my-org/pipeline-actions
+repo_url: https://github.com/HamiltonHills/pipeline-actions
+repo_name: HamiltonHills/pipeline-actions
 edit_uri: edit/main/docs/
 
 theme:

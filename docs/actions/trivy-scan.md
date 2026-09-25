@@ -3,7 +3,7 @@
 Scan a container image, a directory, or an SBOM for vulnerabilities with Trivy.
 
 ```yaml title="Usage"
-- uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+- uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
   with:
     target: ...
 ```
@@ -19,4 +19,4 @@ Scan a container image, a directory, or an SBOM for vulnerabilities with Trivy.
 | `fail-on-findings` | no | `true` | Fail the step when findings at the given severities exist |
 | `trivyignores` | no | `''` | Comma-separated list of .trivyignore files to apply |
 
-Source: [`core/trivy-scan/action.yml`](https://github.com/my-org/pipeline-actions/blob/main/core/trivy-scan/action.yml)
+Source: [`core/trivy-scan/action.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/core/trivy-scan/action.yml)

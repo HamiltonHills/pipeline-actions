@@ -10,7 +10,7 @@ apply. Deploys to the same environment are serialized, never cancelled.
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: my-org/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
     with:
       environment: ...
 ```
@@ -33,4 +33,4 @@ See [Examples](../examples.md) for a complete caller.
 |---|---|---|
 | `DEPLOY_TOKEN` | no | Optional credential exposed to the deploy script as DEPLOY_TOKEN |
 
-Source: [`.github/workflows/core-deploy.yml`](https://github.com/my-org/pipeline-actions/blob/main/.github/workflows/core-deploy.yml)
+Source: [`.github/workflows/core-deploy.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/.github/workflows/core-deploy.yml)

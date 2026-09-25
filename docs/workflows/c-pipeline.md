@@ -12,7 +12,7 @@ build + test + sonar + package + sbom + trivy  ->  (on tags) GitHub release
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: my-org/pipeline-actions/.github/workflows/c-pipeline.yml@c/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/c-pipeline.yml@c/v1
     with:
       package-name: ...
 ```
@@ -41,4 +41,4 @@ See [Examples](../examples.md) for a complete caller.
 | `SONAR_TOKEN` | no |  |
 | `SONAR_HOST_URL` | no |  |
 
-Source: [`.github/workflows/c-pipeline.yml`](https://github.com/my-org/pipeline-actions/blob/main/.github/workflows/c-pipeline.yml)
+Source: [`.github/workflows/c-pipeline.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/.github/workflows/c-pipeline.yml)

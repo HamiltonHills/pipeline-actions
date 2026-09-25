@@ -1,9 +1,9 @@
 # vue/build
 
-Install dependencies with npm ci, run tests (with coverage), and build a Vue/Vite app.
+Install dependencies with npm ci, optionally lint, run tests (with coverage), and build a Vue/Vite app.
 
 ```yaml title="Usage"
-- uses: my-org/pipeline-actions/vue/build@vue/v1
+- uses: HamiltonHills/pipeline-actions/vue/build@vue/v1
   with:
     working-directory: ...
 ```
@@ -14,6 +14,8 @@ Install dependencies with npm ci, run tests (with coverage), and build a Vue/Vit
 |---|---|---|---|
 | `working-directory` | no | `.` | Directory containing package.json |
 | `node-version` | no | `22` | Node.js version (ignored when a .nvmrc or .node-version exists in working-directory) |
+| `run-lint` | no | `false` | Run the lint script before testing |
+| `lint-script` | no | `lint` | npm script that lints the app |
 | `run-tests` | no | `true` | Run the test script before building |
 | `test-script` | no | `test` | npm script that runs tests (should write coverage/lcov.info for Sonar) |
 | `build-script` | no | `build` | npm script that builds the app |
@@ -26,4 +28,4 @@ Install dependencies with npm ci, run tests (with coverage), and build a Vue/Vit
 |---|---|
 | `dist-path` | Path to the build output, relative to the workspace |
 
-Source: [`vue/build/action.yml`](https://github.com/my-org/pipeline-actions/blob/main/vue/build/action.yml)
+Source: [`vue/build/action.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/vue/build/action.yml)

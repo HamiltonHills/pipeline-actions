@@ -1,8 +1,8 @@
 # Each domain can have its own owners without splitting the repo.
-*                             @my-org/platform
-/core/                        @my-org/platform
-/.github/workflows/core-*     @my-org/platform
-/vue/                         @my-org/frontend-platform
-/.github/workflows/vue-*      @my-org/frontend-platform
-/c/                           @my-org/embedded-platform
-/.github/workflows/c-*        @my-org/embedded-platform
+*                             @HamiltonHills/platform
+/core/                        @HamiltonHills/platform
+/.github/workflows/core-*     @HamiltonHills/platform
+/vue/                         @HamiltonHills/frontend-platform
+/.github/workflows/vue-*      @HamiltonHills/frontend-platform
+/c/                           @HamiltonHills/embedded-platform
+/.github/workflows/c-*        @HamiltonHills/embedded-platform

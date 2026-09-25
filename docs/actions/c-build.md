@@ -3,7 +3,7 @@
 Configure, build and test a CMake project. Always exports compile_commands.json, which Sonar's C/C++ analysis requires.
 
 ```yaml title="Usage"
-- uses: my-org/pipeline-actions/c/build@c/v1
+- uses: HamiltonHills/pipeline-actions/c/build@c/v1
   with:
     source-dir: ...
 ```
@@ -26,4 +26,4 @@ Configure, build and test a CMake project. Always exports compile_commands.json,
 | `build-dir` | Absolute path to the build directory |
 | `compile-commands` | Absolute path to compile_commands.json |
 
-Source: [`c/build/action.yml`](https://github.com/my-org/pipeline-actions/blob/main/c/build/action.yml)
+Source: [`c/build/action.yml`](https://github.com/HamiltonHills/pipeline-actions/blob/main/c/build/action.yml)
