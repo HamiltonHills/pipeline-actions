@@ -1,0 +1,45 @@
+name: Trivy scan
+description: Scan a container image, a directory, or an SBOM for vulnerabilities with Trivy.
+inputs:
+  scan-type:
+    description: One of image, fs, sbom
+    default: image
+  target:
+    description: Image reference (image), directory (fs), or SBOM file path (sbom)
+    required: true
+  severity:
+    description: Comma-separated severities that count as findings
+    default: CRITICAL,HIGH
+  ignore-unfixed:
+    description: Ignore vulnerabilities that have no fix available yet
+    default: 'true'
+  fail-on-findings:
+    description: Fail the step when findings at the given severities exist
+    default: 'true'
+  trivyignores:
+    description: Comma-separated list of .trivyignore files to apply
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        SCAN_TYPE: ${{ inputs.scan-type }}
+      run: |
+        case "$SCAN_TYPE" in
+          image|fs|sbom) ;;
+          *) echo "::error::scan-type must be image, fs or sbom (got '$SCAN_TYPE')"; exit 1 ;;
+        esac
+
+    - name: Trivy
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        scan-type: ${{ inputs.scan-type }}
+        image-ref: ${{ inputs.scan-type == 'image' && inputs.target || '' }}
+        scan-ref: ${{ inputs.scan-type != 'image' && inputs.target || '' }}
+        severity: ${{ inputs.severity }}
+        ignore-unfixed: ${{ inputs.ignore-unfixed }}
+        exit-code: ${{ inputs.fail-on-findings == 'true' && '1' || '0' }}
+        trivyignores: ${{ inputs.trivyignores }}
+        format: table

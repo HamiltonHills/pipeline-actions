@@ -1,0 +1,83 @@
+name: Vue build
+description: Install dependencies with npm ci, run tests (with coverage), and build a Vue/Vite app.
+inputs:
+  working-directory:
+    description: Directory containing package.json
+    default: '.'
+  node-version:
+    description: Node.js version (ignored when a .nvmrc or .node-version exists in working-directory)
+    default: '22'
+  run-tests:
+    description: Run the test script before building
+    default: 'true'
+  test-script:
+    description: npm script that runs tests (should write coverage/lcov.info for Sonar)
+    default: test
+  build-script:
+    description: npm script that builds the app
+    default: build
+  dist-dir:
+    description: Build output directory, relative to working-directory
+    default: dist
+  artifact-name:
+    description: Upload the build output as an artifact with this name (empty to skip)
+    default: vue-dist
+outputs:
+  dist-path:
+    description: Path to the build output, relative to the workspace
+    value: ${{ steps.paths.outputs.dist }}
+runs:
+  using: composite
+  steps:
+    - name: Resolve paths
+      id: paths
+      shell: bash
+      env:
+        WD: ${{ inputs.working-directory }}
+        DIST: ${{ inputs.dist-dir }}
+      run: |
+        if [ ! -f "$WD/package-lock.json" ]; then
+          echo "::error::$WD/package-lock.json not found. Commit your lockfile so npm ci is reproducible."
+          exit 1
+        fi
+        echo "dist=$WD/$DIST" >> "$GITHUB_OUTPUT"
+        if [ -f "$WD/.nvmrc" ]; then
+          echo "version-file=$WD/.nvmrc" >> "$GITHUB_OUTPUT"
+        elif [ -f "$WD/.node-version" ]; then
+          echo "version-file=$WD/.node-version" >> "$GITHUB_OUTPUT"
+        fi
+
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ steps.paths.outputs.version-file == '' && inputs.node-version || '' }}
+        node-version-file: ${{ steps.paths.outputs.version-file }}
+        cache: npm
+        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci --no-audit --no-fund
+
+    - name: Test
+      if: inputs.run-tests == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SCRIPT: ${{ inputs.test-script }}
+      run: npm run "$SCRIPT"
+
+    - name: Build
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SCRIPT: ${{ inputs.build-script }}
+      run: npm run "$SCRIPT"
+
+    - name: Upload build output
+      if: inputs.artifact-name != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.paths.outputs.dist }}
+        if-no-files-found: error

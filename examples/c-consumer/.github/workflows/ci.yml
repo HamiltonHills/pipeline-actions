@@ -1,0 +1,29 @@
+# Everything a C team needs. PRs and main build, test, scan and package;
+# pushing a v* tag (git tag v1.2.0 && git push --tags) publishes a release.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    uses: my-org/pipeline-actions/.github/workflows/c-pipeline.yml@c/v1
+    permissions:
+      contents: write        # release job creates the GitHub release
+      id-token: write
+      attestations: write
+    with:
+      package-name: hello-c
+      release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # apt-packages: libssl-dev zlib1g-dev
+      # cmake-args: -DENABLE_FOO=ON
+      attest: false          # true on public repos or GitHub Enterprise Cloud
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

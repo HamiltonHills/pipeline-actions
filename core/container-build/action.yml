@@ -1,0 +1,100 @@
+name: Container build
+description: >
+  Build a container image with Buildx and GitHub Actions layer caching.
+  With push=false the image is loaded into the local Docker daemon so it can be
+  scanned before anything is published. With push=true it is pushed and the
+  digest is returned.
+inputs:
+  image-name:
+    description: Full image name without tag, e.g. ghcr.io/my-org/my-app (lowercase)
+    required: true
+  context:
+    description: Build context directory
+    default: '.'
+  dockerfile:
+    description: Path to the Dockerfile. Defaults to <context>/Dockerfile
+    default: ''
+  push:
+    description: Push to the registry (true) or load locally for scanning (false)
+    default: 'false'
+  build-args:
+    description: Newline-separated build args (KEY=value)
+    default: ''
+  registry:
+    description: Registry to log in to when pushing
+    default: ghcr.io
+  registry-username:
+    description: Registry username (defaults to the workflow actor, which works for GHCR)
+    default: ${{ github.actor }}
+  registry-password:
+    description: Registry password or token (defaults to GITHUB_TOKEN, which works for GHCR)
+    default: ${{ github.token }}
+outputs:
+  image:
+    description: Image name without tag
+    value: ${{ inputs.image-name }}
+  digest:
+    description: Pushed image digest (sha256:...). Empty when push=false
+    value: ${{ inputs.push == 'true' && steps.build.outputs.digest || '' }}
+  local-ref:
+    description: First generated tag, usable for scanning a locally loaded image
+    value: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+  tags:
+    description: Newline-separated list of all generated tags
+    value: ${{ steps.meta.outputs.tags }}
+runs:
+  using: composite
+  steps:
+    - name: Resolve Dockerfile path
+      id: file
+      shell: bash
+      env:
+        CONTEXT: ${{ inputs.context }}
+        DOCKERFILE: ${{ inputs.dockerfile }}
+      run: |
+        file="${DOCKERFILE:-$CONTEXT/Dockerfile}"
+        if [ ! -f "$file" ]; then
+          echo "::error::Dockerfile not found at $file"
+          exit 1
+        fi
+        echo "path=$file" >> "$GITHUB_OUTPUT"
+
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+    - name: Generate tags and labels
+      id: meta
+      uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+      with:
+        images: ${{ inputs.image-name }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,format=long
+
+    - name: Log in to registry
+      if: inputs.push == 'true'
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.registry-username }}
+        password: ${{ inputs.registry-password }}
+
+    - name: Build
+      id: build
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ steps.file.outputs.path }}
+        build-args: ${{ inputs.build-args }}
+        push: ${{ inputs.push == 'true' }}
+        load: ${{ inputs.push != 'true' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        # Provenance and SBOM are produced as separate, verifiable attestations
+        # by the core-container workflow, so keep the image manifest plain.
+        provenance: false
+        sbom: false

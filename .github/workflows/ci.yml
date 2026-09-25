@@ -1,0 +1,154 @@
+# Tests the library itself on every PR.
+#
+# Actions are referenced with ./ paths so the PR's own code is exercised.
+# (Reusable workflows reference released tags like @core/v1, so they are
+# covered by linting here and by the post-release smoke test.)
+#
+# Design rule that makes this work: composite actions never call sibling
+# actions. Only reusable workflows compose them.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
+  test-c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: build
+        uses: ./c/build
+        with:
+          source-dir: test-fixtures/c-app
+
+      - name: compile_commands.json exists
+        env:
+          FILE: ${{ steps.build.outputs.compile-commands }}
+        run: test -s "$FILE"
+
+      - id: package
+        uses: ./c/package
+        with:
+          build-dir: ${{ steps.build.outputs.build-dir }}
+          name: hello-c
+          version: 0.0.0-ci
+
+      - name: Package contents and checksum
+        env:
+          PKG: ${{ steps.package.outputs.package-path }}
+          SUM: ${{ steps.package.outputs.checksum-path }}
+        run: |
+          tar -tzf "$PKG" | tee /dev/stderr | grep -q '/bin/hello$'
+          (cd "$(dirname "$SUM")" && sha256sum -c "$(basename "$SUM")")
+
+      - id: sbom
+        uses: ./core/sbom
+        with:
+          path: ${{ steps.package.outputs.staging-dir }}
+          output-file: c-sbom.cdx.json
+
+      - uses: ./core/trivy-scan
+        with:
+          scan-type: sbom
+          target: ${{ steps.sbom.outputs.path }}
+
+      - uses: ./core/trivy-scan
+        with:
+          scan-type: fs
+          target: test-fixtures/c-app
+
+      - name: Sonar skips cleanly without a token
+        uses: ./core/sonar-scan
+
+  test-vue-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./vue/build
+        with:
+          working-directory: test-fixtures/vue-app
+          artifact-name: ''
+
+      - name: Coverage was produced for Sonar
+        run: test -s test-fixtures/vue-app/coverage/lcov.info
+
+      - id: image
+        uses: ./core/container-build
+        with:
+          image-name: ghcr.io/${{ github.repository }}/ci-fixture
+          context: test-fixtures/vue-app
+          push: 'false'
+
+      - id: sbom
+        uses: ./core/sbom
+        with:
+          image: ${{ steps.image.outputs.local-ref }}
+          output-file: vue-sbom.cdx.json
+
+      - name: SBOM has components
+        run: test "$(jq '.components | length' vue-sbom.cdx.json)" -gt 0
+
+      - uses: ./core/trivy-scan
+        with:
+          scan-type: image
+          target: ${{ steps.image.outputs.local-ref }}
+
+      - name: Smoke test the image
+        env:
+          IMAGE: ${{ steps.image.outputs.local-ref }}
+        run: |
+          docker run -d --name app -p 8080:8080 "$IMAGE"
+          for _ in $(seq 1 20); do
+            curl -sf http://localhost:8080/ > page.html && break
+            sleep 1
+          done
+          grep -q '<title>hello-vue</title>' page.html
+          # SPA fallback: unknown routes must serve index.html
+          curl -sf http://localhost:8080/some/client/route | grep -q 'id="app"'
+          docker rm -f app
+
+  test-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create a throwaway deploy script
+        run: |
+          mkdir -p "$RUNNER_TEMP/d"
+          cat > "$RUNNER_TEMP/d/deploy.sh" <<'SH'
+          #!/usr/bin/env bash
+          echo "env=$DEPLOY_ENVIRONMENT image=$IMAGE" > "$RUNNER_TEMP/d/out"
+          SH
+      - uses: ./core/deploy
+        with:
+          environment: ci
+          script: ${{ runner.temp }}/d/deploy.sh
+          image: example/image@sha256:0000
+      - run: grep -q 'env=ci image=example/image@sha256:0000' "$RUNNER_TEMP/d/out"

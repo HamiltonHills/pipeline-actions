@@ -1,0 +1,114 @@
+# Complete pipeline for a Vue/Vite app served from a container:
+#   build + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
+#
+# Caller job must grant: contents: read, packages: write,
+#                        id-token: write, attestations: write
+name: vue-pipeline
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        default: '.'
+      node-version:
+        type: string
+        default: '22'
+      image-name:
+        description: Defaults to ghcr.io/<owner>/<repo>
+        type: string
+        default: ''
+      push-image:
+        description: Push the image (typically only on pushes to main or tags)
+        type: boolean
+        default: false
+      attest:
+        description: Requires a public repo or GitHub Enterprise Cloud
+        type: boolean
+        default: false
+      trivy-severity:
+        type: string
+        default: CRITICAL,HIGH
+      sonar-args:
+        type: string
+        default: ''
+      deploy-environment:
+        description: Environment to deploy to after a successful push (empty to skip)
+        type: string
+        default: ''
+      deploy-script:
+        type: string
+        default: deploy/deploy.sh
+    secrets:
+      SONAR_TOKEN:
+        required: false
+      SONAR_HOST_URL:
+        required: false
+      DEPLOY_TOKEN:
+        required: false
+    outputs:
+      image:
+        value: ${{ jobs.container.outputs.image }}
+      digest:
+        value: ${{ jobs.container.outputs.digest }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # Sonar needs history to detect new code
+          persist-credentials: false
+
+      - uses: my-org/pipeline-actions/vue/build@vue/v1
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          node-version: ${{ inputs.node-version }}
+          artifact-name: vue-dist
+
+      - uses: my-org/pipeline-actions/core/sonar-scan@core/v1
+        with:
+          token: ${{ secrets.SONAR_TOKEN }}
+          host-url: ${{ secrets.SONAR_HOST_URL }}
+          project-base-dir: ${{ inputs.working-directory }}
+          args: -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ${{ inputs.sonar-args }}
+
+  container:
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: my-org/pipeline-actions/.github/workflows/core-container.yml@core/v1
+    with:
+      image-name: ${{ inputs.image-name }}
+      context: ${{ inputs.working-directory }}
+      download-artifact: vue-dist
+      download-path: ${{ inputs.working-directory }}/dist
+      push: ${{ inputs.push-image }}
+      attest: ${{ inputs.attest }}
+      trivy-severity: ${{ inputs.trivy-severity }}
+
+  deploy:
+    needs: container
+    if: inputs.deploy-environment != '' && inputs.push-image
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+      attestations: read
+    uses: my-org/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
+    with:
+      environment: ${{ inputs.deploy-environment }}
+      deploy-script: ${{ inputs.deploy-script }}
+      image: ${{ needs.container.outputs.image }}@${{ needs.container.outputs.digest }}
+      verify-attestation: ${{ inputs.attest }}
+    secrets:
+      DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
