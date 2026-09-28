@@ -91,7 +91,7 @@ jobs:
 
       - name: Build (local)
         id: build
-        uses: my-org/pipeline-actions/core/container-build@core/v1
+        uses: HamiltonHills/pipeline-actions/core/container-build@core/v1
         with:
           image-name: ${{ steps.name.outputs.image }}
           context: ${{ inputs.context }}
@@ -101,14 +101,14 @@ jobs:
 
       - name: SBOM
         id: sbom
-        uses: my-org/pipeline-actions/core/sbom@core/v1
+        uses: HamiltonHills/pipeline-actions/core/sbom@core/v1
         with:
           image: ${{ steps.build.outputs.local-ref }}
           output-file: container-sbom.cdx.json
           artifact-name: container-sbom
 
       - name: Vulnerability scan
-        uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
         with:
           scan-type: image
           target: ${{ steps.build.outputs.local-ref }}
@@ -117,7 +117,7 @@ jobs:
       - name: Push
         id: push
         if: inputs.push
-        uses: my-org/pipeline-actions/core/container-build@core/v1
+        uses: HamiltonHills/pipeline-actions/core/container-build@core/v1
         with:
           image-name: ${{ steps.name.outputs.image }}
           context: ${{ inputs.context }}

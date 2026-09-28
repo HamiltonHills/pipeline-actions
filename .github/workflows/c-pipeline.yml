@@ -75,14 +75,14 @@ jobs:
 
       - name: Build and test
         id: build
-        uses: my-org/pipeline-actions/c/build@c/v1
+        uses: HamiltonHills/pipeline-actions/c/build@c/v1
         with:
           source-dir: ${{ inputs.source-dir }}
           build-type: ${{ inputs.build-type }}
           cmake-args: ${{ inputs.cmake-args }}
           apt-packages: ${{ inputs.apt-packages }}
 
-      - uses: my-org/pipeline-actions/core/sonar-scan@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
         with:
           token: ${{ secrets.SONAR_TOKEN }}
           host-url: ${{ secrets.SONAR_HOST_URL }}
@@ -90,7 +90,7 @@ jobs:
           args: -Dsonar.cfamily.compile-commands=${{ steps.build.outputs.compile-commands }} ${{ inputs.sonar-args }}
 
       - name: Source scan (vulnerable manifests, committed secrets)
-        uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
         with:
           scan-type: fs
           target: ${{ inputs.source-dir }}
@@ -98,7 +98,7 @@ jobs:
 
       - name: Package
         id: package
-        uses: my-org/pipeline-actions/c/package@c/v1
+        uses: HamiltonHills/pipeline-actions/c/package@c/v1
         with:
           build-dir: ${{ steps.build.outputs.build-dir }}
           name: ${{ inputs.package-name }}
@@ -106,13 +106,13 @@ jobs:
 
       - name: SBOM
         id: sbom
-        uses: my-org/pipeline-actions/core/sbom@core/v1
+        uses: HamiltonHills/pipeline-actions/core/sbom@core/v1
         with:
           path: ${{ steps.package.outputs.staging-dir }}
           output-file: dist/${{ inputs.package-name }}-${{ steps.version.outputs.version }}.cdx.json
 
       - name: SBOM scan
-        uses: my-org/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
         with:
           scan-type: sbom
           target: ${{ steps.sbom.outputs.path }}

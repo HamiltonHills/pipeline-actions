@@ -8,6 +8,9 @@ const name = ref('world')
 <template>
   <main>
     <h1>{{ greet(name) }}</h1>
-    <input v-model="name" aria-label="Name" />
+    <input
+      v-model="name"
+      aria-label="Name"
+    >
   </main>
 </template>

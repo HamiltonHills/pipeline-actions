@@ -1,5 +1,5 @@
 name: Vue build
-description: Install dependencies with npm ci, run tests (with coverage), and build a Vue/Vite app.
+description: Install dependencies with npm ci, optionally lint, run tests (with coverage), and build a Vue/Vite app.
 inputs:
   working-directory:
     description: Directory containing package.json
@@ -7,6 +7,12 @@ inputs:
   node-version:
     description: Node.js version (ignored when a .nvmrc or .node-version exists in working-directory)
     default: '22'
+  run-lint:
+    description: Run the lint script before testing
+    default: 'false'
+  lint-script:
+    description: npm script that lints the app
+    default: lint
   run-tests:
     description: Run the test script before building
     default: 'true'
@@ -58,6 +64,14 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: npm ci --no-audit --no-fund
+
+    - name: Lint
+      if: inputs.run-lint == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SCRIPT: ${{ inputs.lint-script }}
+      run: npm run "$SCRIPT"
 
     - name: Test
       if: inputs.run-tests == 'true'
