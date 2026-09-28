@@ -60,7 +60,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - uses: my-org/pipeline-actions/core/deploy@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/deploy@core/v1
         env:
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         with:

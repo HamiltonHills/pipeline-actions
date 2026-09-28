@@ -1,0 +1,91 @@
+site_name: pipeline-actions
+site_description: Shared GitHub Actions for building, scanning and shipping containers, Vue apps and C projects.
+repo_url: https://github.com/HamiltonHills/pipeline-actions
+repo_name: HamiltonHills/pipeline-actions
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    logo: material/pipe
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to system preference
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Actions:
+      - actions/index.md
+      - core/container-build: actions/container-build.md
+      - core/sbom: actions/sbom.md
+      - core/trivy-scan: actions/trivy-scan.md
+      - core/sonar-scan: actions/sonar-scan.md
+      - core/deploy: actions/deploy.md
+      - vue/build: actions/vue-build.md
+      - c/build: actions/c-build.md
+      - c/package: actions/c-package.md
+  - Workflows:
+      - workflows/index.md
+      - vue-pipeline: workflows/vue-pipeline.md
+      - c-pipeline: workflows/c-pipeline.md
+      - core-container: workflows/core-container.md
+      - core-deploy: workflows/core-deploy.md
+  - Examples: examples.md
+  - Versioning: versioning.md
+  - Things to know: things-to-know.md
+  - Contributing: contributing.md

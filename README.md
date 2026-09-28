@@ -37,10 +37,11 @@ examples/            what app teams put in their repos
 
 1. **Create the repo** and push this code to `main`.
 
-2. **Set your org name.** Every internal reference uses the placeholder
-   `my-org/pipeline-actions`:
+2. **Set your org name.** Already done for `HamiltonHills/pipeline-actions`.
+   On a fork, rerun it with the new name, which replaces every internal
+   reference:
    ```bash
-   ./scripts/set-org.sh acme/pipeline-actions
+   ./scripts/set-org.sh HamiltonHills/pipeline-actions
    ```
    This also updates the team names in `.github/CODEOWNERS`, so make sure
    those teams exist.

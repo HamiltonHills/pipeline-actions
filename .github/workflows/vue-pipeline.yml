@@ -1,5 +1,5 @@
 # Complete pipeline for a Vue/Vite app served from a container:
-#   build + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
+#   build + lint + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
 #
 # Caller job must grant: contents: read, packages: write,
 #                        id-token: write, attestations: write
@@ -14,6 +14,20 @@ on:
       node-version:
         type: string
         default: '22'
+      run-lint:
+        description: Run the lint script before testing
+        type: boolean
+        default: false
+      lint-script:
+        type: string
+        default: lint
+      run-tests:
+        type: boolean
+        default: true
+      container:
+        description: Build, scan and optionally push the image. false stops after the build job (no image, no deploy)
+        type: boolean
+        default: true
       image-name:
         description: Defaults to ghcr.io/<owner>/<repo>
         type: string
@@ -66,13 +80,16 @@ jobs:
           fetch-depth: 0   # Sonar needs history to detect new code
           persist-credentials: false
 
-      - uses: my-org/pipeline-actions/vue/build@vue/v1
+      - uses: HamiltonHills/pipeline-actions/vue/build@vue/v1
         with:
           working-directory: ${{ inputs.working-directory }}
           node-version: ${{ inputs.node-version }}
-          artifact-name: vue-dist
+          run-lint: ${{ inputs.run-lint }}
+          lint-script: ${{ inputs.lint-script }}
+          run-tests: ${{ inputs.run-tests }}
+          artifact-name: ${{ inputs.container && 'vue-dist' || '' }}
 
-      - uses: my-org/pipeline-actions/core/sonar-scan@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
         with:
           token: ${{ secrets.SONAR_TOKEN }}
           host-url: ${{ secrets.SONAR_HOST_URL }}
@@ -81,12 +98,13 @@ jobs:
 
   container:
     needs: build
+    if: inputs.container
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    uses: my-org/pipeline-actions/.github/workflows/core-container.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v1
     with:
       image-name: ${{ inputs.image-name }}
       context: ${{ inputs.working-directory }}
@@ -104,7 +122,7 @@ jobs:
       packages: read
       id-token: write
       attestations: read
-    uses: my-org/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
     with:
       environment: ${{ inputs.deploy-environment }}
       deploy-script: ${{ inputs.deploy-script }}
