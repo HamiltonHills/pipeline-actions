@@ -12,8 +12,10 @@ inputs:
     description: Directory to catalog (set this OR image)
     default: ''
   format:
-    description: SBOM format (cyclonedx-json or spdx-json)
-    default: cyclonedx-json
+    description: >
+      SBOM format (cyclonedx-json or spdx-json, optionally with @version).
+      Defaults to CycloneDX 1.6 because Trivy can't read Syft's newer 1.7 output yet
+    default: cyclonedx-json@1.6
   output-file:
     description: Where to write the SBOM
     default: sbom.cdx.json

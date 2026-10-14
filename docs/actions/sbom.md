@@ -14,7 +14,7 @@ Generate an SBOM with Syft for a container image or a directory. Note: for C/C++
 |---|---|---|---|
 | `image` | no | `''` | Image reference to catalog (set this OR path) |
 | `path` | no | `''` | Directory to catalog (set this OR image) |
-| `format` | no | `cyclonedx-json` | SBOM format (cyclonedx-json or spdx-json) |
+| `format` | no | `cyclonedx-json@1.6` | SBOM format (cyclonedx-json or spdx-json, optionally with @version). Defaults to CycloneDX 1.6 because Trivy can't read Syft's newer 1.7 output yet |
 | `output-file` | no | `sbom.cdx.json` | Where to write the SBOM |
 | `artifact-name` | no | `''` | Upload the SBOM as a workflow artifact with this name (empty to skip) |
 
