@@ -38,7 +38,7 @@ outputs:
     value: ${{ inputs.push == 'true' && steps.build.outputs.digest || '' }}
   local-ref:
     description: First generated tag, usable for scanning a locally loaded image
-    value: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+    value: ${{ steps.ref.outputs.local-ref }}
   tags:
     description: Newline-separated list of all generated tags
     value: ${{ steps.meta.outputs.tags }}
@@ -72,6 +72,16 @@ runs:
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
           type=sha,format=long
+
+    # Computed in a step rather than with fromJSON() in the output value:
+    # the runner re-evaluates outputs in the post phase, where an empty
+    # steps.meta.outputs.json makes fromJSON() fail the job.
+    - name: Resolve local ref
+      id: ref
+      shell: bash
+      env:
+        META_JSON: ${{ steps.meta.outputs.json }}
+      run: echo "local-ref=$(jq -r '.tags[0]' <<< "$META_JSON")" >> "$GITHUB_OUTPUT"
 
     - name: Log in to registry
       if: inputs.push == 'true'
