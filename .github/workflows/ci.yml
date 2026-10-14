@@ -13,6 +13,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Startup failures can't be re-run, e.g. after cutting a release that a
+  # nested @core/v1 or @vue/v1 ref depends on.
+  workflow_dispatch:
 
 permissions:
   contents: read
