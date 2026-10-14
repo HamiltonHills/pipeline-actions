@@ -1,5 +1,5 @@
 # Complete pipeline for a Vue/Vite app served from a container:
-#   build + lint + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
+#   source scan + build + lint + test + sonar  ->  container (sbom, trivy, push, attest)  ->  deploy
 #
 # Caller job must grant: contents: read, packages: write,
 #                        id-token: write, attestations: write
@@ -9,9 +9,11 @@ on:
   workflow_call:
     inputs:
       working-directory:
+        description: Directory containing package.json and the Dockerfile
         type: string
         default: '.'
       node-version:
+        description: Node.js version (ignored when a .nvmrc or .node-version exists in working-directory)
         type: string
         default: '22'
       run-lint:
@@ -19,17 +21,46 @@ on:
         type: boolean
         default: false
       lint-script:
+        description: npm script that lints the app
         type: string
         default: lint
       run-tests:
+        description: Run the test script before building
         type: boolean
         default: true
+      test-script:
+        description: npm script that runs tests. Should write coverage/lcov.info for Sonar
+        type: string
+        default: test
+      build-script:
+        description: npm script that builds the app
+        type: string
+        default: build
+      dist-dir:
+        description: Build output directory, relative to working-directory
+        type: string
+        default: dist
+      fail-on-source-findings:
+        description: >
+          Fail the build when the source scan (npm dependencies from package-lock.json,
+          committed secrets) finds issues at trivy-severity. Off by default: findings
+          are reported but don't fail the build
+        type: boolean
+        default: false
       container:
         description: Build, scan and optionally push the image. false stops after the build job (no image, no deploy)
         type: boolean
         default: true
       image-name:
         description: Defaults to ghcr.io/<owner>/<repo>
+        type: string
+        default: ''
+      dockerfile:
+        description: Defaults to <working-directory>/Dockerfile
+        type: string
+        default: ''
+      build-args:
+        description: Newline-separated Docker build args (KEY=value)
         type: string
         default: ''
       push-image:
@@ -41,9 +72,11 @@ on:
         type: boolean
         default: false
       trivy-severity:
+        description: Comma-separated severities that count as findings in the source and image scans
         type: string
         default: CRITICAL,HIGH
       sonar-args:
+        description: Extra Sonar scanner arguments
         type: string
         default: ''
       deploy-environment:
@@ -51,19 +84,29 @@ on:
         type: string
         default: ''
       deploy-script:
+        description: Path in the caller's repo to the deploy script
         type: string
         default: deploy/deploy.sh
+      runs-on:
+        description: Runner label for every job, e.g. self-hosted to reach a SonarQube server on a private network
+        type: string
+        default: ubuntu-latest
     secrets:
       SONAR_TOKEN:
+        description: Sonar token. Sonar is skipped with a notice when empty
         required: false
       SONAR_HOST_URL:
+        description: SonarQube Server URL. Leave empty for SonarQube Cloud
         required: false
       DEPLOY_TOKEN:
+        description: Optional credential exposed to the deploy script as DEPLOY_TOKEN
         required: false
     outputs:
       image:
+        description: Image name without tag (empty when container is false)
         value: ${{ jobs.container.outputs.image }}
       digest:
+        description: Pushed image digest (empty unless push-image is true)
         value: ${{ jobs.container.outputs.digest }}
 
 permissions:
@@ -71,7 +114,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     permissions:
       contents: read
     steps:
@@ -80,6 +123,16 @@ jobs:
           fetch-depth: 0   # Sonar needs history to detect new code
           persist-credentials: false
 
+      # Before npm ci so only committed files are scanned. The image scan
+      # can't see npm dependencies: the image only contains the built dist/.
+      - name: Source scan (npm dependencies, committed secrets)
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+        with:
+          scan-type: fs
+          target: ${{ inputs.working-directory }}
+          severity: ${{ inputs.trivy-severity }}
+          fail-on-findings: ${{ inputs.fail-on-source-findings }}
+
       - uses: HamiltonHills/pipeline-actions/vue/build@vue/v1
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -87,6 +140,9 @@ jobs:
           run-lint: ${{ inputs.run-lint }}
           lint-script: ${{ inputs.lint-script }}
           run-tests: ${{ inputs.run-tests }}
+          test-script: ${{ inputs.test-script }}
+          build-script: ${{ inputs.build-script }}
+          dist-dir: ${{ inputs.dist-dir }}
           artifact-name: ${{ inputs.container && 'vue-dist' || '' }}
 
       - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
@@ -94,7 +150,7 @@ jobs:
           token: ${{ secrets.SONAR_TOKEN }}
           host-url: ${{ secrets.SONAR_HOST_URL }}
           project-base-dir: ${{ inputs.working-directory }}
-          args: -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ${{ inputs.sonar-args }}
+          args: ${{ inputs.run-tests && '-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info' || '' }} ${{ inputs.sonar-args }}
 
   container:
     needs: build
@@ -108,11 +164,14 @@ jobs:
     with:
       image-name: ${{ inputs.image-name }}
       context: ${{ inputs.working-directory }}
+      dockerfile: ${{ inputs.dockerfile }}
+      build-args: ${{ inputs.build-args }}
       download-artifact: vue-dist
-      download-path: ${{ inputs.working-directory }}/dist
+      download-path: ${{ inputs.working-directory }}/${{ inputs.dist-dir }}
       push: ${{ inputs.push-image }}
       attest: ${{ inputs.attest }}
       trivy-severity: ${{ inputs.trivy-severity }}
+      runs-on: ${{ inputs.runs-on }}
 
   deploy:
     needs: container
@@ -128,5 +187,6 @@ jobs:
       deploy-script: ${{ inputs.deploy-script }}
       image: ${{ needs.container.outputs.image }}@${{ needs.container.outputs.digest }}
       verify-attestation: ${{ inputs.attest }}
+      runs-on: ${{ inputs.runs-on }}
     secrets:
       DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

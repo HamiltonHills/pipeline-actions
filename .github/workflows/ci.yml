@@ -152,6 +152,21 @@ jobs:
       run-tests: false
       container: false
 
+  # Test + build + image through vue-pipeline.yml and core-container.yml:
+  # source scan, coverage path for Sonar, artifact hand-off, SBOM and image
+  # scan. Nothing is pushed, so nothing deploys.
+  test-vue-pipeline-container:
+    uses: ./.github/workflows/vue-pipeline.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      working-directory: test-fixtures/vue-app
+      image-name: ghcr.io/${{ github.repository }}/ci-fixture
+      push-image: false
+
   test-deploy:
     runs-on: ubuntu-latest
     steps:
