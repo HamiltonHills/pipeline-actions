@@ -19,7 +19,7 @@ core/
   trivy-scan/        image | fs | sbom scanning
   sonar-scan/        SonarQube Server/Cloud; skips when no token
   deploy/            optional provenance check, then the caller's deploy script
-vue/build/           npm ci, test (coverage), build, upload dist
+vue/build/           npm ci, lint, test (coverage), build, upload dist
 c/build/             cmake configure/build/ctest, exports compile_commands.json
 c/package/           install to staging, tar.gz + sha256
 .github/workflows/
