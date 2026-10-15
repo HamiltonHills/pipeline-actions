@@ -3,7 +3,7 @@
 Run SonarQube (Server or Cloud) analysis. Skips with a notice when no token is provided, so pipelines work in repos that haven't been onboarded to Sonar yet. The checkout should use fetch-depth 0 so Sonar can attribute new code.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
+- uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v2
   with:
     token: ...
 ```

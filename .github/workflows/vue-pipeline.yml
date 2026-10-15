@@ -88,9 +88,9 @@ on:
         type: string
         default: deploy/deploy.sh
       runs-on:
-        description: Runner label for every job, e.g. self-hosted to reach a SonarQube server on a private network
+        description: Runner label for every job. Needs Docker with Buildx for the container job. Use ubuntu-latest for GitHub-hosted
         type: string
-        default: ubuntu-latest
+        default: self-hosted
     secrets:
       SONAR_TOKEN:
         description: Sonar token. Sonar is skipped with a notice when empty
@@ -126,14 +126,14 @@ jobs:
       # Before npm ci so only committed files are scanned. The image scan
       # can't see npm dependencies: the image only contains the built dist/.
       - name: Source scan (npm dependencies, committed secrets)
-        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v2
         with:
           scan-type: fs
           target: ${{ inputs.working-directory }}
           severity: ${{ inputs.trivy-severity }}
           fail-on-findings: ${{ inputs.fail-on-source-findings }}
 
-      - uses: HamiltonHills/pipeline-actions/vue/build@vue/v1
+      - uses: HamiltonHills/pipeline-actions/vue/build@vue/v2
         with:
           working-directory: ${{ inputs.working-directory }}
           node-version: ${{ inputs.node-version }}
@@ -145,7 +145,7 @@ jobs:
           dist-dir: ${{ inputs.dist-dir }}
           artifact-name: ${{ inputs.container && 'vue-dist' || '' }}
 
-      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v2
         with:
           token: ${{ secrets.SONAR_TOKEN }}
           host-url: ${{ secrets.SONAR_HOST_URL }}
@@ -160,7 +160,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
-    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v2
     with:
       image-name: ${{ inputs.image-name }}
       context: ${{ inputs.working-directory }}
@@ -181,7 +181,7 @@ jobs:
       packages: read
       id-token: write
       attestations: read
-    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v2
     with:
       environment: ${{ inputs.deploy-environment }}
       deploy-script: ${{ inputs.deploy-script }}

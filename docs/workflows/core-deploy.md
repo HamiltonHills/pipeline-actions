@@ -10,7 +10,7 @@ apply. Deploys to the same environment are serialized, never cancelled.
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v2
     with:
       environment: ...
 ```
@@ -25,7 +25,7 @@ See [Examples](../examples.md) for a complete caller.
 | `deploy-script` | string | no | `deploy/deploy.sh` | Path in the caller's repo to the deploy script |
 | `image` | string | no | `''` | Image pinned by digest (name@sha256:...) |
 | `verify-attestation` | boolean | no | `false` | Requires the image to have been built with attest=true |
-| `runs-on` | string | no | `ubuntu-latest` |  |
+| `runs-on` | string | no | `self-hosted` | Runner label. Use ubuntu-latest for GitHub-hosted |
 
 ## Secrets
 

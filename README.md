@@ -5,9 +5,9 @@ and C projects. One repo, versioned by **domain**:
 
 | Domain | Tag namespace | Contains |
 |---|---|---|
-| core | `core/v1` | container build, SBOM, Trivy, Sonar, deploy, Artifactory upload |
-| vue  | `vue/v1`  | Vue/Vite build + `vue-pipeline.yml` |
-| c    | `c/v1`    | CMake build, packaging + `c-pipeline.yml` |
+| core | `core/v2` | container build, SBOM, Trivy, Sonar, deploy, Artifactory upload |
+| vue  | `vue/v2`  | Vue/Vite build + `vue-pipeline.yml` |
+| c    | `c/v2`    | CMake build, packaging + `c-pipeline.yml` |
 
 A Vue team only sees `vue/*` releases, and a C team only sees `c/*` releases.
 Both pick up shared fixes through `core`.
@@ -55,9 +55,9 @@ examples/            what app teams put in their repos
    the organization*.
 
 4. **Cut the first releases, core first.** The pipelines reference
-   `@core/v1`, `@vue/v1` and `@c/v1`, which don't exist until you release them.
+   `@core/v2`, `@vue/v2` and `@c/v2`, which don't exist until you release them.
    Go to Actions → release → Run workflow and run `core` 1.0.0, then
-   `vue` 1.0.0, then `c` 1.0.0.
+   `vue` 2.0.0, then `c` 2.0.0.
 
 5. **Onboard an app.** Copy the files from `examples/vue-consumer` or
    `examples/c-consumer` into the app's repo. For Sonar, add `SONAR_TOKEN`
@@ -67,15 +67,15 @@ examples/            what app teams put in their repos
 ## Versioning rules
 
 - **Patch/minor** (`core` 1.3.0 → 1.4.0): bug fixes, new *optional* inputs,
-  bumped third-party action pins. Consumers on `@core/v1` get these on their
+  bumped third-party action pins. Consumers on `@core/v2` get these on their
   next run.
 - **Major** (`core/v2`): removed or renamed inputs, changed outputs, or anything
   that makes previously passing builds fail. Tightening a security gate counts
   as major. Changing the default `trivy-severity` from `CRITICAL,HIGH` to
   include `MEDIUM` would break builds across the org, so ship it in a major and
   announce it. Teams can opt in early by setting the input themselves.
-- **Bumping core's major:** the vue and c pipelines pin `@core/v1`. After
-  releasing `core/v2`, update those refs in a PR, then release `vue` and `c`
+- **Bumping core's major:** the vue and c pipelines pin `@core/v2`. After
+  releasing `core/v3`, update those refs in a PR, then release `vue` and `c`
   (as majors if the core change affects their consumers).
 
 ## Rules for contributors
@@ -93,6 +93,10 @@ examples/            what app teams put in their repos
 
 ## Things to know
 
+- **Self-hosted by default (v2).** Every job runs on `runs-on: self-hosted`
+  unless the caller passes `ubuntu-latest`. C repos should set
+  `container: ghcr.io/hamiltonhills/c-builder:1` so the runner only needs
+  Docker. See [Self-hosted runners](docs/things-to-know.md#self-hosted-runners).
 - **Attestations** (`attest: true`) need a public repo or GitHub Enterprise
   Cloud. They are off by default so everything works on any plan. With them on,
   the deploy step verifies provenance before running the deploy script.

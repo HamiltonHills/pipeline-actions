@@ -44,8 +44,9 @@ on:
         type: string
         default: CRITICAL,HIGH
       runs-on:
+        description: Runner label. Needs Docker with Buildx. Use ubuntu-latest for GitHub-hosted
         type: string
-        default: ubuntu-latest
+        default: self-hosted
     outputs:
       image:
         description: Image name without tag
@@ -91,7 +92,7 @@ jobs:
 
       - name: Build (local)
         id: build
-        uses: HamiltonHills/pipeline-actions/core/container-build@core/v1
+        uses: HamiltonHills/pipeline-actions/core/container-build@core/v2
         with:
           image-name: ${{ steps.name.outputs.image }}
           context: ${{ inputs.context }}
@@ -101,14 +102,14 @@ jobs:
 
       - name: SBOM
         id: sbom
-        uses: HamiltonHills/pipeline-actions/core/sbom@core/v1
+        uses: HamiltonHills/pipeline-actions/core/sbom@core/v2
         with:
           image: ${{ steps.build.outputs.local-ref }}
           output-file: container-sbom.cdx.json
           artifact-name: container-sbom
 
       - name: Vulnerability scan
-        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v2
         with:
           scan-type: image
           target: ${{ steps.build.outputs.local-ref }}
@@ -117,7 +118,7 @@ jobs:
       - name: Push
         id: push
         if: inputs.push
-        uses: HamiltonHills/pipeline-actions/core/container-build@core/v1
+        uses: HamiltonHills/pipeline-actions/core/container-build@core/v2
         with:
           image-name: ${{ steps.name.outputs.image }}
           context: ${{ inputs.context }}
@@ -141,3 +142,14 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           sbom-path: ${{ steps.sbom.outputs.path }}
           push-to-registry: true
+
+      # Self-hosted runners keep their Docker images between jobs. Remove the
+      # copy loaded for scanning so every build doesn't add to the disk.
+      - name: Remove the local image
+        if: always()
+        env:
+          TAGS: ${{ steps.build.outputs.tags }}
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && docker image rm "$tag" >/dev/null 2>&1 || true
+          done <<< "$TAGS"

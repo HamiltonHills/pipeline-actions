@@ -24,7 +24,7 @@ the organization*.
 
 ## 4. Cut the first releases, core first
 
-The pipelines reference `@core/v1`, `@vue/v1` and `@c/v1`, which don't exist
+The pipelines reference `@core/v2`, `@vue/v2` and `@c/v2`, which don't exist
 until you release them. Go to **Actions → release → Run workflow** and run:
 
 1. `core` 1.0.0

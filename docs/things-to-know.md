@@ -46,36 +46,57 @@ build is fast.
 
 A Vue image only contains the built `dist/`, so the image scan can't see
 `package-lock.json`. `vue-pipeline.yml` runs a Trivy filesystem scan of the
-app's directory to cover npm dependencies and committed secrets. In `vue/v1`
+app's directory to cover npm dependencies and committed secrets. In `vue/v2`
 it only reports findings. Set `fail-on-source-findings: true` to make it a
 gate. Failing by default would break builds that pass today, so it waits for
 a major release.
 
 ## Self-hosted runners
 
-`vue-pipeline.yml` takes `runs-on`. `c-pipeline.yml` takes `runs-on` and
-`artifactory-runs-on`. Both take a single runner label, such as `self-hosted`
-or a custom label like `artifactory`.
+Since v2, every reusable workflow defaults to `runs-on: self-hosted`, and so
+does this library's own CI. Pass `runs-on: ubuntu-latest` to use
+GitHub-hosted runners instead. `c-pipeline.yml` also takes
+`artifactory-runs-on` to send only the upload to a different runner.
 
-For C, the simplest runner setup is Docker only: set `container:
-ghcr.io/hamiltonhills/c-builder:1` and the toolchain comes from the image.
-Install Docker on the runner and add the runner's user to the `docker` group.
-See [Running in a container](workflows/c-pipeline.md#running-in-a-container).
+### What the runner needs
 
-Without a container, what a self-hosted runner needs depends on the job it
-runs:
-
-| Job | Needs on the runner |
+| Workflow | Needs on the runner |
 |---|---|
-| Artifactory upload | bash, curl 7.76+, coreutils (`sha256sum`, `sha1sum`, `md5sum`), network access to Artifactory and to GitHub |
-| C build | CMake, a C toolchain, and passwordless `sudo apt-get` if you use `apt-packages` |
-| C release | the GitHub CLI (`gh`) |
-| Vue build, container | Node is installed by the pipeline. Docker with Buildx for the container job |
+| `vue-pipeline` | Docker with Buildx (for the image). Node is installed by the pipeline |
+| `c-pipeline` with `container: ghcr.io/hamiltonhills/c-builder:1` | Docker only. The toolchain comes from the image ([Running in a container](workflows/c-pipeline.md#running-in-a-container)) |
+| `c-pipeline` without a container | CMake, a C toolchain, `gh` for releases, passwordless `sudo apt-get` for `apt-packages` |
+| `core-deploy` | whatever your deploy script uses |
+| everything | bash, curl 7.76+, git, coreutils, and network access to GitHub, ghcr.io and Artifactory |
 
-Trivy and Syft are downloaded by their actions. A runner without internet
-access needs an internal mirror for their binaries and the Trivy database.
+The runner's user must be in the `docker` group. Trivy and Syft download
+their binaries and the Trivy database at run time, so a runner without
+internet access needs internal mirrors for them.
 
-Runners are registered per org or repo under **Settings → Actions → Runners**.
-For a runner that only uploads to Artifactory, give it a dedicated label
-(e.g. `artifactory`) and set `artifactory-runs-on: artifactory`, so other jobs
-can't land on it.
+### Runner groups and public repos
+
+A repo can only use a runner whose group allows it (**Org settings → Actions
+→ Runner groups**). This library is public, so its group must have **Allow
+public repositories** checked.
+
+A self-hosted runner on a public repo runs pull-request code inside your
+network. This repo requires maintainer approval before Actions run for any
+outside contributor (**Settings → Actions → General → Approval for running
+fork pull request workflows → Require approval for all external
+contributors**). Keep that setting, and review a fork's changes before
+approving its run. App repos should stay private.
+
+### Housekeeping
+
+Unlike GitHub-hosted VMs, a self-hosted runner keeps state between jobs.
+The workflows clean up after themselves: `core-container.yml` removes the
+image it loaded for scanning, and CI uses unique container names and random
+ports. Base images, build caches and the Trivy database still accumulate, so
+prune on the runner weekly:
+
+```bash
+# /etc/cron.weekly/docker-prune
+docker system prune -af --filter "until=168h"
+```
+
+One runner runs one job at a time. Add runners to the group as more repos
+move over.

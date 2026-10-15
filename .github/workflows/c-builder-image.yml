@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       version: ${{ steps.v.outputs.version }}
       minor: ${{ steps.v.outputs.minor }}
@@ -68,7 +68,7 @@ jobs:
   tag:
     needs: [version, image]
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       packages: write
     steps:
