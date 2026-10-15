@@ -5,7 +5,7 @@ and C projects. One repo, versioned by **domain**:
 
 | Domain | Tag namespace | Contains |
 |---|---|---|
-| core | `core/v1` | container build, SBOM, Trivy, Sonar, deploy |
+| core | `core/v1` | container build, SBOM, Trivy, Sonar, deploy, Artifactory upload |
 | vue  | `vue/v1`  | Vue/Vite build + `vue-pipeline.yml` |
 | c    | `c/v1`    | CMake build, packaging + `c-pipeline.yml` |
 
@@ -19,6 +19,7 @@ core/
   trivy-scan/        image | fs | sbom scanning
   sonar-scan/        SonarQube Server/Cloud; skips when no token
   deploy/            optional provenance check, then the caller's deploy script
+  artifactory-upload/ upload files to JFrog Artifactory (token auth, checksums)
 vue/build/           npm ci, lint, test (coverage), build, upload dist
 c/build/             cmake configure/build/ctest, exports compile_commands.json
 c/package/           install to staging, tar.gz + sha256
@@ -26,7 +27,8 @@ c/package/           install to staging, tar.gz + sha256
   core-container.yml   build -> sbom -> trivy -> push -> attest   (reusable)
   core-deploy.yml      environment-gated deploy                   (reusable)
   vue-pipeline.yml     full Vue pipeline                          (reusable)
-  c-pipeline.yml       full C pipeline, releases on v* tags       (reusable)
+  c-pipeline.yml       full C pipeline, releases on v* tags,
+                       optional Artifactory upload                (reusable)
   ci.yml               tests this library on every PR
   release.yml          cut a release for one domain
 test-fixtures/       tiny Vue app and C app used by ci.yml

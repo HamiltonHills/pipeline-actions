@@ -50,3 +50,26 @@ app's directory to cover npm dependencies and committed secrets. In `vue/v1`
 it only reports findings. Set `fail-on-source-findings: true` to make it a
 gate. Failing by default would break builds that pass today, so it waits for
 a major release.
+
+## Self-hosted runners
+
+`vue-pipeline.yml` takes `runs-on`. `c-pipeline.yml` takes `runs-on` and
+`artifactory-runs-on`. Both take a single runner label, such as `self-hosted`
+or a custom label like `artifactory`.
+
+What a self-hosted runner needs depends on the job it runs:
+
+| Job | Needs on the runner |
+|---|---|
+| Artifactory upload | bash, curl 7.76+, coreutils (`sha256sum`, `sha1sum`, `md5sum`), network access to Artifactory and to GitHub |
+| C build | CMake, a C toolchain, and passwordless `sudo apt-get` if you use `apt-packages` |
+| C release | the GitHub CLI (`gh`) |
+| Vue build, container | Node is installed by the pipeline. Docker with Buildx for the container job |
+
+Trivy and Syft are downloaded by their actions. A runner without internet
+access needs an internal mirror for their binaries and the Trivy database.
+
+Runners are registered per org or repo under **Settings → Actions → Runners**.
+For a runner that only uploads to Artifactory, give it a dedicated label
+(e.g. `artifactory`) and set `artifactory-runs-on: artifactory`, so other jobs
+can't land on it.

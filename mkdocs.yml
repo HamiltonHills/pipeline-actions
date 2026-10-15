@@ -76,6 +76,7 @@ nav:
       - core/trivy-scan: actions/trivy-scan.md
       - core/sonar-scan: actions/sonar-scan.md
       - core/deploy: actions/deploy.md
+      - core/artifactory-upload: actions/artifactory-upload.md
       - vue/build: actions/vue-build.md
       - c/build: actions/c-build.md
       - c/package: actions/c-package.md

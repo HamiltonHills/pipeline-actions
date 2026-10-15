@@ -1,0 +1,109 @@
+name: Artifactory upload
+description: >
+  Upload files to a JFrog Artifactory repository with an access token. Sends
+  SHA-256, SHA-1 and MD5 checksums so Artifactory verifies each upload, and
+  attaches optional properties. Needs only bash, curl and coreutils, so it runs
+  on minimal self-hosted runners.
+inputs:
+  url:
+    description: Artifactory base URL, e.g. https://artifactory.example.com/artifactory
+    required: true
+  repository:
+    description: Target repository key, e.g. c-releases-local
+    required: true
+  path:
+    description: Directory inside the repository to upload into, e.g. my-lib/1.2.3
+    default: ''
+  files:
+    description: Newline-separated file paths or globs to upload. Each pattern must match at least one file
+    required: true
+  token:
+    description: Artifactory access token (sent as a Bearer token)
+    required: true
+  properties:
+    description: Semicolon-separated key=value properties to set on every file, e.g. vcs.revision=abc;build=42
+    default: ''
+outputs:
+  urls:
+    description: Newline-separated URLs of the uploaded files
+    value: ${{ steps.upload.outputs.urls }}
+runs:
+  using: composite
+  steps:
+    - name: Upload
+      id: upload
+      shell: bash
+      env:
+        BASE_URL: ${{ inputs.url }}
+        REPO: ${{ inputs.repository }}
+        TARGET: ${{ inputs.path }}
+        FILES: ${{ inputs.files }}
+        TOKEN: ${{ inputs.token }}
+        PROPERTIES: ${{ inputs.properties }}
+      run: |
+        [ -n "$TOKEN" ] || { echo "::error::No Artifactory token. Pass the ARTIFACTORY_TOKEN secret."; exit 1; }
+        [ -n "$BASE_URL" ] || { echo "::error::url is required"; exit 1; }
+        [[ "$REPO" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::error::Invalid repository key: '$REPO'"; exit 1; }
+
+        urlencode() {
+          local LC_ALL=C s="$1" out="" c i   # byte-wise, so UTF-8 encodes correctly
+          for ((i = 0; i < ${#s}; i++)); do
+            c="${s:i:1}"
+            case "$c" in
+              [A-Za-z0-9._~-]) out+="$c" ;;
+              *) out+=$(printf '%%%02X' "'$c") ;;
+            esac
+          done
+          printf '%s' "$out"
+        }
+
+        # Properties go on the URL as Artifactory matrix params (;key=value).
+        # Values are encoded so characters like / don't break the path.
+        matrix=""
+        IFS=';' read -ra props <<< "$PROPERTIES"
+        for p in "${props[@]}"; do
+          [ -n "$p" ] || continue
+          [[ "$p" == *=* ]] || { echo "::error::Property '$p' is not key=value"; exit 1; }
+          matrix+=";$(urlencode "${p%%=*}")=$(urlencode "${p#*=}")"
+        done
+
+        base="${BASE_URL%/}/$REPO"
+        target="${TARGET#/}"; target="${target%/}"
+        [ -n "$target" ] && base+="/$target"
+
+        shopt -s nullglob
+        uploaded=()
+        while IFS= read -r pattern; do
+          pattern="${pattern#"${pattern%%[![:space:]]*}"}"; pattern="${pattern%"${pattern##*[![:space:]]}"}"
+          [ -n "$pattern" ] || continue
+          # Unquoted on purpose so globs expand
+          # shellcheck disable=SC2206
+          matches=($pattern)
+          [ ${#matches[@]} -gt 0 ] || { echo "::error::No files match '$pattern'"; exit 1; }
+          for f in "${matches[@]}"; do
+            [ -f "$f" ] || continue
+            url="$base/$(urlencode "$(basename "$f")")"
+            echo "Uploading $f -> $url"
+            if ! curl -sS --fail-with-body --retry 3 \
+              -X PUT -T "$f" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "X-Checksum-Sha256: $(sha256sum "$f" | cut -d' ' -f1)" \
+              -H "X-Checksum-Sha1: $(sha1sum "$f" | cut -d' ' -f1)" \
+              -H "X-Checksum: $(md5sum "$f" | cut -d' ' -f1)" \
+              -o "$RUNNER_TEMP/artifactory-response" \
+              "$url$matrix"; then
+              { cat "$RUNNER_TEMP/artifactory-response"; echo; } >&2 || true
+              echo "::error::Upload of $f failed"
+              exit 1
+            fi
+            uploaded+=("$url")
+          done
+        done <<< "$FILES"
+
+        [ ${#uploaded[@]} -gt 0 ] || { echo "::error::Nothing to upload"; exit 1; }
+        {
+          echo "urls<<URLS_EOF"
+          printf '%s\n' "${uploaded[@]}"
+          echo "URLS_EOF"
+        } >> "$GITHUB_OUTPUT"
+        printf '%s\n' "${uploaded[@]}" | sed 's/^/- /' | { echo "### Uploaded to Artifactory"; cat; } >> "$GITHUB_STEP_SUMMARY"
