@@ -25,8 +25,9 @@ on:
         type: boolean
         default: false
       runs-on:
+        description: Runner label. Use ubuntu-latest for GitHub-hosted
         type: string
-        default: ubuntu-latest
+        default: self-hosted
     secrets:
       DEPLOY_TOKEN:
         description: Optional credential exposed to the deploy script as DEPLOY_TOKEN

@@ -18,7 +18,7 @@ Set `fail-on-source-findings: true` to make it a gate.
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: HamiltonHills/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/vue-pipeline.yml@vue/v2
 ```
 
 See [Examples](../examples.md) for a complete caller.
@@ -46,7 +46,7 @@ See [Examples](../examples.md) for a complete caller.
 | `sonar-args` | string | no | `''` | Extra Sonar scanner arguments |
 | `deploy-environment` | string | no | `''` | Environment to deploy to after a successful push (empty to skip) |
 | `deploy-script` | string | no | `deploy/deploy.sh` | Path in the caller's repo to the deploy script |
-| `runs-on` | string | no | `ubuntu-latest` | Runner label for every job, e.g. self-hosted to reach a SonarQube server on a private network |
+| `runs-on` | string | no | `self-hosted` | Runner label for every job. Needs Docker with Buildx for the container job. Use ubuntu-latest for GitHub-hosted |
 
 ## Secrets
 

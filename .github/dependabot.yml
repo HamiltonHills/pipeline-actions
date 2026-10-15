@@ -18,7 +18,7 @@ updates:
     groups:
       actions:
         patterns: ['*']
-    # Our own refs (@core/v1 etc.) are managed by the release process.
+    # Our own refs (@core/v2 etc.) are managed by the release process.
     ignore:
       - dependency-name: HamiltonHills/pipeline-actions*
 

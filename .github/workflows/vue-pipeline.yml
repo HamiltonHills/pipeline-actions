@@ -88,9 +88,9 @@ on:
         type: string
         default: deploy/deploy.sh
       runs-on:
-        description: Runner label for every job, e.g. self-hosted to reach a SonarQube server on a private network
+        description: Runner label for every job. Needs Docker with Buildx for the container job. Use ubuntu-latest for GitHub-hosted
         type: string
-        default: ubuntu-latest
+        default: self-hosted
     secrets:
       SONAR_TOKEN:
         description: Sonar token. Sonar is skipped with a notice when empty

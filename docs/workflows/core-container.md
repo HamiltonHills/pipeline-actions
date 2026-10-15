@@ -13,7 +13,7 @@ unless the scan passes.
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v2
 ```
 
 See [Examples](../examples.md) for a complete caller.
@@ -31,7 +31,7 @@ See [Examples](../examples.md) for a complete caller.
 | `push` | boolean | no | `false` |  |
 | `attest` | boolean | no | `false` | Create provenance + SBOM attestations for the pushed image. Requires a public repo or GitHub Enterprise Cloud. |
 | `trivy-severity` | string | no | `CRITICAL,HIGH` |  |
-| `runs-on` | string | no | `ubuntu-latest` |  |
+| `runs-on` | string | no | `self-hosted` | Runner label. Needs Docker with Buildx. Use ubuntu-latest for GitHub-hosted |
 
 ## Outputs
 

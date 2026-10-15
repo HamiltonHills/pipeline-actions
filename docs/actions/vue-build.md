@@ -3,7 +3,7 @@
 Install dependencies with npm ci, optionally lint, run tests (with coverage), and build a Vue/Vite app.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/vue/build@vue/v1
+- uses: HamiltonHills/pipeline-actions/vue/build@vue/v2
   with:
     working-directory: ...
 ```

@@ -33,7 +33,7 @@ and C projects. One repo, versioned by **domain**.
 
     ---
 
-    How `core/v1`, `vue/v1` and `c/v1` are released and bumped.
+    How `core/v2`, `vue/v2` and `c/v2` are released and bumped.
 
     [:octicons-arrow-right-24: Versioning](versioning.md)
 
@@ -43,23 +43,23 @@ and C projects. One repo, versioned by **domain**.
 
 | Domain | Tag namespace | Contains |
 |---|---|---|
-| core | `core/v1` | container build, SBOM, Trivy, Sonar, deploy |
-| vue  | `vue/v1`  | Vue/Vite build + `vue-pipeline.yml` |
-| c    | `c/v1`    | CMake build, packaging + `c-pipeline.yml` |
+| core | `core/v2` | container build, SBOM, Trivy, Sonar, deploy |
+| vue  | `vue/v2`  | Vue/Vite build + `vue-pipeline.yml` |
+| c    | `c/v2`    | CMake build, packaging + `c-pipeline.yml` |
 
 A Vue team only sees `vue/*` releases, and a C team only sees `c/*` releases.
 Both pick up shared fixes through `core`.
 
 ```mermaid
 flowchart LR
-  subgraph vue["vue/v1"]
+  subgraph vue["vue/v2"]
     VP[vue-pipeline.yml] --> VB[vue/build]
   end
-  subgraph c["c/v1"]
+  subgraph c["c/v2"]
     CP[c-pipeline.yml] --> CB[c/build]
     CP --> CPK[c/package]
   end
-  subgraph core["core/v1"]
+  subgraph core["core/v2"]
     CC[core-container.yml] --> CBU[container-build]
     CC --> SB[sbom]
     CC --> TS[trivy-scan]
