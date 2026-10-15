@@ -38,8 +38,12 @@ runs:
         PACKAGES: ${{ inputs.apt-packages }}
       run: |
         read -ra pkgs <<< "$PACKAGES"
-        sudo apt-get update -q
-        sudo apt-get install -y --no-install-recommends "${pkgs[@]}"
+        # Container jobs run as root, usually without sudo installed.
+        sudo=()
+        [ "$(id -u)" -eq 0 ] || sudo=(sudo)
+        export DEBIAN_FRONTEND=noninteractive
+        "${sudo[@]}" apt-get update -q
+        "${sudo[@]}" apt-get install -y --no-install-recommends "${pkgs[@]}"
 
     - name: Configure
       id: configure

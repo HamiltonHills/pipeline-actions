@@ -57,7 +57,13 @@ a major release.
 `artifactory-runs-on`. Both take a single runner label, such as `self-hosted`
 or a custom label like `artifactory`.
 
-What a self-hosted runner needs depends on the job it runs:
+For C, the simplest runner setup is Docker only: set `container:
+ghcr.io/hamiltonhills/c-builder:1` and the toolchain comes from the image.
+Install Docker on the runner and add the runner's user to the `docker` group.
+See [Running in a container](workflows/c-pipeline.md#running-in-a-container).
+
+Without a container, what a self-hosted runner needs depends on the job it
+runs:
 
 | Job | Needs on the runner |
 |---|---|

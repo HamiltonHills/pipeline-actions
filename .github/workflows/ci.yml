@@ -220,6 +220,19 @@ jobs:
       image-name: ghcr.io/${{ github.repository }}/ci-fixture
       push-image: false
 
+  # The whole C pipeline directly on the runner (container input empty).
+  # c-builder-image.yml runs the same thing inside the image.
+  test-c-pipeline:
+    uses: ./.github/workflows/c-pipeline.yml
+    # GitHub checks the nested release job's permissions even when it's skipped.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    with:
+      package-name: hello-c
+      source-dir: test-fixtures/c-app
+
   test-deploy:
     runs-on: ubuntu-latest
     steps:
