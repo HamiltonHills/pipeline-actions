@@ -95,6 +95,12 @@ on:
 permissions:
   contents: read
 
+# Inside a `container`, run steps default to sh, not bash. The steps below
+# use bash syntax ([[ ]], ${VAR::7}, arrays).
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     runs-on: ${{ inputs.runs-on }}

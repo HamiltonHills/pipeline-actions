@@ -233,6 +233,19 @@ jobs:
       package-name: hello-c
       source-dir: test-fixtures/c-app
 
+  # Same, inside the published toolchain image. Catches steps that only work
+  # on a bare runner (e.g. bash syntax, since containers default to sh).
+  test-c-pipeline-container:
+    uses: ./.github/workflows/c-pipeline.yml
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    with:
+      package-name: hello-c
+      source-dir: test-fixtures/c-app
+      container: ghcr.io/${{ github.repository_owner }}/c-builder:1
+
   test-deploy:
     runs-on: ubuntu-latest
     steps:
