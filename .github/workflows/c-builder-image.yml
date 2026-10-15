@@ -1,0 +1,106 @@
+# Builds ghcr.io/<owner>/c-builder, the toolchain image for c-pipeline's
+# `container` input.
+#
+#   PR:          build + SBOM + Trivy scan, nothing pushed
+#   main/weekly: push, attest, tag <version>, <major>.<minor>, <major> from
+#                images/c-builder/VERSION, then run c-pipeline inside it
+#
+# The weekly rebuild picks up Ubuntu security updates under the same tags.
+# Bump VERSION's major when a toolchain change can break builds.
+name: c-builder-image
+
+on:
+  pull_request:
+    paths:
+      - images/c-builder/**
+      - .github/workflows/c-builder-image.yml
+  push:
+    branches: [main]
+    paths:
+      - images/c-builder/**
+      - .github/workflows/c-builder-image.yml
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c-builder-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      minor: ${{ steps.v.outputs.minor }}
+      major: ${{ steps.v.outputs.major }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: v
+        run: |
+          version=$(tr -d '[:space:]' < images/c-builder/VERSION)
+          [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.[0-9]+$ ]] || { echo "::error::VERSION must be X.Y.Z (got '$version')"; exit 1; }
+          {
+            echo "version=$version"
+            echo "minor=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+            echo "major=${BASH_REMATCH[1]}"
+          } >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: version
+    uses: ./.github/workflows/core-container.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      image-name: ghcr.io/${{ github.repository_owner }}/c-builder
+      context: images/c-builder
+      push: ${{ github.event_name != 'pull_request' }}
+      attest: ${{ github.event_name != 'pull_request' }}   # this repo is public
+
+  tag:
+    needs: [version, image]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Add version tags
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          VERSION: ${{ needs.version.outputs.version }}
+          MINOR: ${{ needs.version.outputs.minor }}
+          MAJOR: ${{ needs.version.outputs.major }}
+        run: |
+          docker buildx imagetools create \
+            -t "$IMAGE:$VERSION" -t "$IMAGE:$MINOR" -t "$IMAGE:$MAJOR" \
+            "$IMAGE@$DIGEST"
+          echo "Tagged $IMAGE@$DIGEST as $VERSION, $MINOR, $MAJOR" >> "$GITHUB_STEP_SUMMARY"
+
+  # The real pipeline inside the image that was just pushed: checkout,
+  # build, ctest, Trivy, package, SBOM, artifact upload.
+  smoke:
+    needs: [image, tag]
+    uses: ./.github/workflows/c-pipeline.yml
+    # GitHub checks the nested release job's permissions even when it's skipped.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    with:
+      package-name: hello-c
+      source-dir: test-fixtures/c-app
+      container: ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}

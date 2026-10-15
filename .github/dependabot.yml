@@ -22,6 +22,12 @@ updates:
     ignore:
       - dependency-name: HamiltonHills/pipeline-actions*
 
+  # Base image digest for the c-builder toolchain image
+  - package-ecosystem: docker
+    directory: /images/c-builder
+    schedule:
+      interval: weekly
+
   - package-ecosystem: npm
     directory: /test-fixtures/vue-app
     schedule:

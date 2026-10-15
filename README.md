@@ -29,8 +29,10 @@ c/package/           install to staging, tar.gz + sha256
   vue-pipeline.yml     full Vue pipeline                          (reusable)
   c-pipeline.yml       full C pipeline, releases on v* tags,
                        optional Artifactory upload                (reusable)
+  c-builder-image.yml  build, scan and publish the c-builder image
   ci.yml               tests this library on every PR
   release.yml          cut a release for one domain
+images/c-builder/    toolchain image for C jobs (c-pipeline `container` input)
 test-fixtures/       tiny Vue app and C app used by ci.yml
 examples/            what app teams put in their repos
 ```

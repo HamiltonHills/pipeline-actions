@@ -40,6 +40,7 @@ See [Examples](../examples.md) for a complete caller.
 | `artifactory-path` | string | no | `''` | Directory inside the repository. Defaults to &lt;package-name&gt;/&lt;version&gt; |
 | `runs-on` | string | no | `ubuntu-latest` | Runner label for the build and release jobs |
 | `artifactory-runs-on` | string | no | `''` | Runner label for the Artifactory upload job, e.g. a self-hosted runner that can reach your Artifactory. Defaults to runs-on |
+| `container` | string | no | `''` | Image to run every job in, e.g. ghcr.io/hamiltonhills/c-builder:1. The runner then only needs Docker. Empty runs directly on the runner |
 
 ## Secrets
 
@@ -48,6 +49,32 @@ See [Examples](../examples.md) for a complete caller.
 | `SONAR_TOKEN` | no | Sonar token. Sonar is skipped with a notice when empty |
 | `SONAR_HOST_URL` | no | SonarQube Server URL. Leave empty for SonarQube Cloud |
 | `ARTIFACTORY_TOKEN` | no | Artifactory access token, required when artifactory-publish is true |
+
+## Running in a container
+
+Set `container: ghcr.io/hamiltonhills/c-builder:1` and every job (build,
+release, Artifactory upload) runs inside that image. A self-hosted runner then
+only needs Docker, and every build uses the same toolchain.
+
+`c-builder` is built from [`images/c-builder`](https://github.com/HamiltonHills/pipeline-actions/tree/main/images/c-builder)
+by `c-builder-image.yml`. It's Ubuntu 24.04 with GCC, CMake, Ninja,
+pkg-config, git, gh, curl and jq. It's scanned before every push and rebuilt
+weekly for security updates.
+
+| Tag | Moves on |
+|---|---|
+| `c-builder:1` | every rebuild of 1.x (recommended) |
+| `c-builder:1.0` | every rebuild of 1.0.x |
+| `c-builder:1.0.0` | weekly security rebuilds only |
+| `c-builder@sha256:...` | never |
+
+A new major (`c-builder:2`) means a toolchain change that can break builds,
+such as a new GCC major. Teams switch when they're ready.
+
+Need extra packages? Either use `apt-packages` (it installs into the job's
+container), or build your own image `FROM ghcr.io/hamiltonhills/c-builder:1`.
+Use a Debian or Ubuntu base: JavaScript actions run the runner's Node inside
+the container, which doesn't work on Alpine.
 
 ## Publishing to Artifactory
 

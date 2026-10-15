@@ -75,6 +75,12 @@ on:
           that can reach your Artifactory. Defaults to runs-on
         type: string
         default: ''
+      container:
+        description: >
+          Image to run every job in, e.g. ghcr.io/hamiltonhills/c-builder:1.
+          The runner then only needs Docker. Empty runs directly on the runner
+        type: string
+        default: ''
     secrets:
       SONAR_TOKEN:
         description: Sonar token. Sonar is skipped with a notice when empty
@@ -92,6 +98,7 @@ permissions:
 jobs:
   build:
     runs-on: ${{ inputs.runs-on }}
+    container: ${{ inputs.container }}
     permissions:
       contents: read
     outputs:
@@ -167,6 +174,7 @@ jobs:
     needs: build
     if: inputs.release
     runs-on: ${{ inputs.runs-on }}
+    container: ${{ inputs.container }}
     environment: ${{ inputs.release-environment }}
     permissions:
       contents: write
@@ -212,6 +220,7 @@ jobs:
     needs: build
     if: inputs.artifactory-publish
     runs-on: ${{ inputs.artifactory-runs-on || inputs.runs-on }}
+    container: ${{ inputs.container }}
     permissions:
       contents: read
     steps:
