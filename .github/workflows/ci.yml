@@ -87,6 +87,56 @@ jobs:
       - name: Sonar skips cleanly without a token
         uses: ./core/sonar-scan
 
+      # The mock checks the Bearer token and SHA-256 like the real deploy API.
+      - name: Start mock Artifactory
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifactory"
+          python3 test-fixtures/artifactory-mock/server.py 8081 "$RUNNER_TEMP/artifactory" ci-token &
+          for _ in $(seq 1 20); do
+            curl -s -o /dev/null http://127.0.0.1:8081/ && break
+            sleep 0.5
+          done
+
+      - id: upload
+        uses: ./core/artifactory-upload
+        with:
+          url: http://127.0.0.1:8081/artifactory
+          repository: c-local
+          path: hello-c/0.0.0-ci
+          token: ci-token
+          files: |
+            ${{ steps.package.outputs.package-path }}
+            ${{ steps.package.outputs.checksum-path }}
+            ${{ steps.sbom.outputs.path }}
+          properties: vcs.revision=${{ github.sha }};vcs.url=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Uploads arrived intact with properties
+        env:
+          PKG: ${{ steps.package.outputs.package-path }}
+          URLS: ${{ steps.upload.outputs.urls }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          stored="$RUNNER_TEMP/artifactory/c-local/hello-c/0.0.0-ci"
+          cmp "$PKG" "$stored/$(basename "$PKG")"
+          test -s "$stored/c-sbom.cdx.json"
+          test "$(jq -r '."vcs.url"' "$stored/$(basename "$PKG").properties.json")" = "$REPO_URL"
+          test "$(grep -c . <<< "$URLS")" -eq 3
+
+      - name: Artifactory upload fails on a bad token
+        id: bad-token
+        continue-on-error: true
+        uses: ./core/artifactory-upload
+        with:
+          url: http://127.0.0.1:8081/artifactory
+          repository: c-local
+          token: wrong
+          files: ${{ steps.package.outputs.package-path }}
+
+      - name: Bad token was rejected
+        env:
+          OUTCOME: ${{ steps.bad-token.outcome }}
+        run: test "$OUTCOME" = failure
+
   test-vue-container:
     runs-on: ubuntu-latest
     steps:

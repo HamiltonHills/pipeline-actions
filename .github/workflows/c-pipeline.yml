@@ -1,5 +1,6 @@
 # Complete pipeline for a CMake-based C project:
 #   build + test + sonar + package + sbom + trivy  ->  (on tags) GitHub release
+#                                                ->  (opt-in) Artifactory upload
 #
 # Caller job must grant: contents: write (for releases), id-token: write,
 #                        attestations: write
@@ -9,24 +10,31 @@ on:
   workflow_call:
     inputs:
       package-name:
+        description: Package name, used in the tarball name and the Artifactory path
         type: string
         required: true
       source-dir:
+        description: Directory containing CMakeLists.txt
         type: string
         default: '.'
       build-type:
+        description: CMAKE_BUILD_TYPE
         type: string
         default: Release
       cmake-args:
+        description: Extra space-separated arguments for the configure step
         type: string
         default: ''
       apt-packages:
+        description: Space-separated apt packages to install first (e.g. libssl-dev)
         type: string
         default: ''
       trivy-severity:
+        description: Comma-separated severities that count as findings
         type: string
         default: CRITICAL,HIGH
       sonar-args:
+        description: Extra Sonar scanner arguments
         type: string
         default: ''
       release:
@@ -41,10 +49,41 @@ on:
         description: Requires a public repo or GitHub Enterprise Cloud
         type: boolean
         default: false
+      artifactory-publish:
+        description: Upload the package, its checksum and SBOM to Artifactory. Needs artifactory-url, artifactory-repository and the ARTIFACTORY_TOKEN secret
+        type: boolean
+        default: false
+      artifactory-url:
+        description: Artifactory base URL, e.g. https://artifactory.example.com/artifactory
+        type: string
+        default: ''
+      artifactory-repository:
+        description: Target repository key, e.g. c-releases-local
+        type: string
+        default: ''
+      artifactory-path:
+        description: Directory inside the repository. Defaults to <package-name>/<version>
+        type: string
+        default: ''
+      runs-on:
+        description: Runner label for the build and release jobs
+        type: string
+        default: ubuntu-latest
+      artifactory-runs-on:
+        description: >
+          Runner label for the Artifactory upload job, e.g. a self-hosted runner
+          that can reach your Artifactory. Defaults to runs-on
+        type: string
+        default: ''
     secrets:
       SONAR_TOKEN:
+        description: Sonar token. Sonar is skipped with a notice when empty
         required: false
       SONAR_HOST_URL:
+        description: SonarQube Server URL. Leave empty for SonarQube Cloud
+        required: false
+      ARTIFACTORY_TOKEN:
+        description: Artifactory access token, required when artifactory-publish is true
         required: false
 
 permissions:
@@ -52,7 +91,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     permissions:
       contents: read
     outputs:
@@ -127,7 +166,7 @@ jobs:
   release:
     needs: build
     if: inputs.release
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     environment: ${{ inputs.release-environment }}
     permissions:
       contents: write
@@ -168,3 +207,42 @@ jobs:
             --repo "$REPO" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
+
+  artifactory:
+    needs: build
+    if: inputs.artifactory-publish
+    runs-on: ${{ inputs.artifactory-runs-on || inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check Artifactory settings
+        env:
+          URL: ${{ inputs.artifactory-url }}
+          REPO: ${{ inputs.artifactory-repository }}
+          HAS_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN != '' }}
+        run: |
+          missing=()
+          [ -n "$URL" ] || missing+=(artifactory-url)
+          [ -n "$REPO" ] || missing+=(artifactory-repository)
+          [ "$HAS_TOKEN" = true ] || missing+=("secret ARTIFACTORY_TOKEN")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::artifactory-publish is true but these are missing: ${missing[*]}"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: c-package
+          path: dist
+
+      - uses: HamiltonHills/pipeline-actions/core/artifactory-upload@core/v1
+        with:
+          url: ${{ inputs.artifactory-url }}
+          repository: ${{ inputs.artifactory-repository }}
+          path: ${{ inputs.artifactory-path || format('{0}/{1}', inputs.package-name, needs.build.outputs.version) }}
+          token: ${{ secrets.ARTIFACTORY_TOKEN }}
+          files: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.cdx.json
+          properties: vcs.url=${{ github.server_url }}/${{ github.repository }};vcs.revision=${{ github.sha }};vcs.ref=${{ github.ref }};version=${{ needs.build.outputs.version }};ci.run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
