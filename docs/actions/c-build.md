@@ -3,7 +3,7 @@
 Configure, build and test a CMake project. Always exports compile_commands.json, which Sonar's C/C++ analysis requires.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/c/build@c/v1
+- uses: HamiltonHills/pipeline-actions/c/build@c/v2
   with:
     source-dir: ...
 ```

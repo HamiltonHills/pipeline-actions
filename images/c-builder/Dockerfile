@@ -16,6 +16,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 # gh:         the release job creates GitHub releases with it
 # curl, jq:   Artifactory upload, scripts
 # libasan/ubsan ship with gcc (build-essential)
+# pebble:     ships in the base image outside any package; nothing here uses
+#             it, and its Go stdlib trips Trivy
 RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \
  && apt-get install -y --no-install-recommends \
@@ -34,7 +36,8 @@ RUN apt-get update \
       xz-utils \
       zstd \
       unzip \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -f /usr/bin/pebble
 
 LABEL org.opencontainers.image.source="https://github.com/HamiltonHills/pipeline-actions" \
       org.opencontainers.image.description="C build toolchain for HamiltonHills c-pipeline (GCC, CMake, git, gh, curl)"

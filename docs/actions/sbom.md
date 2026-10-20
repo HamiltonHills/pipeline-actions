@@ -3,7 +3,7 @@
 Generate an SBOM with Syft for a container image or a directory. Note: for C/C++ build output Syft can only see what carries package metadata (e.g. Conan/vcpkg manifests, dpkg databases). Hand-vendored or system-linked libraries will not appear unless declared in a manifest.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/core/sbom@core/v1
+- uses: HamiltonHills/pipeline-actions/core/sbom@core/v2
   with:
     image: ...
 ```

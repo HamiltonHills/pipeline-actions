@@ -13,7 +13,7 @@ build + test + sonar + package + sbom + trivy  ->  (on tags) GitHub release
 ```yaml title="Usage"
 jobs:
   pipeline:
-    uses: HamiltonHills/pipeline-actions/.github/workflows/c-pipeline.yml@c/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/c-pipeline.yml@c/v2
     with:
       package-name: ...
 ```
@@ -38,7 +38,7 @@ See [Examples](../examples.md) for a complete caller.
 | `artifactory-url` | string | no | `''` | Artifactory base URL, e.g. https://artifactory.example.com/artifactory |
 | `artifactory-repository` | string | no | `''` | Target repository key, e.g. c-releases-local |
 | `artifactory-path` | string | no | `''` | Directory inside the repository. Defaults to &lt;package-name&gt;/&lt;version&gt; |
-| `runs-on` | string | no | `ubuntu-latest` | Runner label for the build and release jobs |
+| `runs-on` | string | no | `self-hosted` | Runner label for the build and release jobs. Use ubuntu-latest for GitHub-hosted |
 | `artifactory-runs-on` | string | no | `''` | Runner label for the Artifactory upload job, e.g. a self-hosted runner that can reach your Artifactory. Defaults to runs-on |
 | `container` | string | no | `''` | Image to run every job in, e.g. ghcr.io/hamiltonhills/c-builder:1. The runner then only needs Docker. Empty runs directly on the runner |
 

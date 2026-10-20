@@ -3,7 +3,7 @@
 Build a container image with Buildx and GitHub Actions layer caching. With push=false the image is loaded into the local Docker daemon so it can be scanned before anything is published. With push=true it is pushed and the digest is returned.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/core/container-build@core/v1
+- uses: HamiltonHills/pipeline-actions/core/container-build@core/v2
   with:
     image-name: ...
 ```

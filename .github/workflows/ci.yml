@@ -1,12 +1,16 @@
 # Tests the library itself on every PR.
 #
 # Actions are referenced with ./ paths so the PR's own code is exercised.
-# Reusable workflows reference released tags like @vue/v1, so the
+# Reusable workflows reference released tags like @vue/v2, so the
 # test-vue-pipeline job runs the PR's vue-pipeline.yml but the *released*
 # actions inside it.
 #
 # Design rule that makes this work: composite actions never call sibling
 # actions. Only reusable workflows compose them.
+#
+# Everything runs on the org's self-hosted runner. Unlike a GitHub-hosted VM
+# it keeps state between runs, so jobs use unique names and clean up after
+# themselves. C jobs run inside c-builder because the runner has no toolchain.
 name: ci
 
 on:
@@ -14,7 +18,7 @@ on:
   push:
     branches: [main]
   # Startup failures can't be re-run, e.g. after cutting a release that a
-  # nested @core/v1 or @vue/v1 ref depends on.
+  # nested @core/v2 or @vue/v2 ref depends on.
   workflow_dispatch:
 
 permissions:
@@ -26,7 +30,7 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +41,11 @@ jobs:
           ./actionlint -color
 
   test-c:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    container: ghcr.io/hamiltonhills/c-builder:1
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -90,6 +98,8 @@ jobs:
       # The mock checks the Bearer token and SHA-256 like the real deploy API.
       - name: Start mock Artifactory
         run: |
+          # Test-only dependency, so it isn't baked into c-builder.
+          apt-get update -q && apt-get install -y -q --no-install-recommends python3-minimal >/dev/null
           mkdir -p "$RUNNER_TEMP/artifactory"
           python3 test-fixtures/artifactory-mock/server.py 8081 "$RUNNER_TEMP/artifactory" ci-token &
           for _ in $(seq 1 20); do
@@ -137,8 +147,18 @@ jobs:
           OUTCOME: ${{ steps.bad-token.outcome }}
         run: test "$OUTCOME" = failure
 
+      - name: Hand files back to the runner user
+        if: always()
+        run: |
+          # Container jobs run as root, and the workspace, temp dir and tool
+          # cache are bind mounts from the self-hosted runner. Root-owned
+          # files there break the next job that runs on the host.
+          [[ $(id -u) == 0 ]] || exit 0
+          owner=$(stat -c '%u:%g' "$GITHUB_WORKSPACE/..")
+          chown -R "$owner" "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$RUNNER_TOOL_CACHE" || true
+
   test-vue-container:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -174,19 +194,33 @@ jobs:
           scan-type: image
           target: ${{ steps.image.outputs.local-ref }}
 
+      # Unique name and a random free host port: the runner is shared and
+      # keeps state, so a fixed name or port 8080 could collide.
       - name: Smoke test the image
         env:
           IMAGE: ${{ steps.image.outputs.local-ref }}
+          NAME: ci-fixture-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          docker run -d --name app -p 8080:8080 "$IMAGE"
+          docker run -d --name "$NAME" -p 127.0.0.1::8080 "$IMAGE"
+          port=$(docker port "$NAME" 8080/tcp | head -1 | cut -d: -f2)
           for _ in $(seq 1 20); do
-            curl -sf http://localhost:8080/ > page.html && break
+            curl -sf "http://127.0.0.1:$port/" > page.html && break
             sleep 1
           done
           grep -q '<title>hello-vue</title>' page.html
           # SPA fallback: unknown routes must serve index.html
-          curl -sf http://localhost:8080/some/client/route | grep -q 'id="app"'
-          docker rm -f app
+          curl -sf "http://127.0.0.1:$port/some/client/route" | grep -q 'id="app"'
+
+      - name: Remove the container and image
+        if: always()
+        env:
+          NAME: ci-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+          TAGS: ${{ steps.image.outputs.tags }}
+        run: |
+          docker rm -f "$NAME" 2>/dev/null || true
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && docker image rm "$tag" >/dev/null 2>&1 || true
+          done <<< "$TAGS"
 
   # Lint + build the fixture through vue-pipeline.yml. No tests, no image,
   # no deploy; Sonar skips because no token is passed.
@@ -220,9 +254,9 @@ jobs:
       image-name: ghcr.io/${{ github.repository }}/ci-fixture
       push-image: false
 
-  # The whole C pipeline directly on the runner (container input empty).
-  # c-builder-image.yml runs the same thing inside the image.
-  test-c-pipeline:
+  # The whole C pipeline inside the published toolchain image. Also catches
+  # steps that only work on a bare runner (containers default to sh).
+  test-c-pipeline-container:
     uses: ./.github/workflows/c-pipeline.yml
     # GitHub checks the nested release job's permissions even when it's skipped.
     permissions:
@@ -232,22 +266,10 @@ jobs:
     with:
       package-name: hello-c
       source-dir: test-fixtures/c-app
-
-  # Same, inside the published toolchain image. Catches steps that only work
-  # on a bare runner (e.g. bash syntax, since containers default to sh).
-  test-c-pipeline-container:
-    uses: ./.github/workflows/c-pipeline.yml
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
-    with:
-      package-name: hello-c
-      source-dir: test-fixtures/c-app
-      container: ghcr.io/${{ github.repository_owner }}/c-builder:1
+      container: ghcr.io/hamiltonhills/c-builder:1
 
   test-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

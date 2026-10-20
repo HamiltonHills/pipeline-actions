@@ -1,6 +1,6 @@
 # Release one domain of the library.
 # Actions -> release -> Run workflow -> pick domain + version.
-#   core + 1.3.0  creates core/v1.3.0 and moves core/v1
+#   core + 2.3.0  creates core/v2.3.0 and moves core/v2
 #
 # When you cut a new MAJOR of core, update the @core/vN refs inside the
 # vue-* and c-* workflows in a separate PR and release those domains too.
@@ -27,7 +27,7 @@ permissions:
 jobs:
   release:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: write
     env:

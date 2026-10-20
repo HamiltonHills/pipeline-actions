@@ -3,7 +3,7 @@
 Optionally verify an image's build provenance, then run the caller's own deploy script. The script receives DEPLOY_ENVIRONMENT and IMAGE as env vars, so each team keeps control of *how* they deploy (kubectl, helm, ssh, ...) while the library standardizes the gate in front of it.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/core/deploy@core/v1
+- uses: HamiltonHills/pipeline-actions/core/deploy@core/v2
   with:
     environment: ...
     script: ...

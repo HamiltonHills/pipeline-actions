@@ -3,7 +3,7 @@
 Scan a container image, a directory, or an SBOM for vulnerabilities with Trivy.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+- uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v2
   with:
     target: ...
 ```

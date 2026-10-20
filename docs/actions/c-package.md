@@ -3,7 +3,7 @@
 Install a CMake build into a staging directory and package it as a tarball with a SHA-256 checksum.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/c/package@c/v1
+- uses: HamiltonHills/pipeline-actions/c/package@c/v2
   with:
     name: ...
     version: ...

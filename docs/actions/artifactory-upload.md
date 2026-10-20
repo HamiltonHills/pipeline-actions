@@ -3,7 +3,7 @@
 Upload files to a JFrog Artifactory repository with an access token. Sends SHA-256, SHA-1 and MD5 checksums so Artifactory verifies each upload, and attaches optional properties. Needs only bash, curl and coreutils, so it runs on minimal self-hosted runners.
 
 ```yaml title="Usage"
-- uses: HamiltonHills/pipeline-actions/core/artifactory-upload@core/v1
+- uses: HamiltonHills/pipeline-actions/core/artifactory-upload@core/v2
   with:
     url: https://artifactory.example.com/artifactory
     repository: c-releases-local
