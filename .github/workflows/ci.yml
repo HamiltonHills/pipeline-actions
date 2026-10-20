@@ -42,7 +42,7 @@ jobs:
 
   test-c:
     runs-on: self-hosted
-    container: ghcr.io/${{ github.repository_owner }}/c-builder:1
+    container: ghcr.io/hamiltonhills/c-builder:1
     defaults:
       run:
         shell: bash
@@ -146,6 +146,16 @@ jobs:
         env:
           OUTCOME: ${{ steps.bad-token.outcome }}
         run: test "$OUTCOME" = failure
+
+      - name: Hand files back to the runner user
+        if: always()
+        run: |
+          # Container jobs run as root, and the workspace, temp dir and tool
+          # cache are bind mounts from the self-hosted runner. Root-owned
+          # files there break the next job that runs on the host.
+          [[ $(id -u) == 0 ]] || exit 0
+          owner=$(stat -c '%u:%g' "$GITHUB_WORKSPACE/..")
+          chown -R "$owner" "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$RUNNER_TOOL_CACHE" || true
 
   test-vue-container:
     runs-on: self-hosted
@@ -256,7 +266,7 @@ jobs:
     with:
       package-name: hello-c
       source-dir: test-fixtures/c-app
-      container: ghcr.io/${{ github.repository_owner }}/c-builder:1
+      container: ghcr.io/hamiltonhills/c-builder:1
 
   test-deploy:
     runs-on: self-hosted

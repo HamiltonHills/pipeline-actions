@@ -89,9 +89,12 @@ approving its run. App repos should stay private.
 
 Unlike GitHub-hosted VMs, a self-hosted runner keeps state between jobs.
 The workflows clean up after themselves: `core-container.yml` removes the
-image it loaded for scanning, and CI uses unique container names and random
-ports. Base images, build caches and the Trivy database still accumulate, so
-prune on the runner weekly:
+image it loaded for scanning, CI uses unique container names and random
+ports, and `c-pipeline.yml`'s container jobs hand the files they wrote as
+root back to the runner's user. If you run your own container jobs on a
+shared runner, do the same, or the next job on the host fails with `EACCES`
+in `_work`. Base images, build caches and the Trivy database still
+accumulate, so prune on the runner weekly:
 
 ```bash
 # /etc/cron.weekly/docker-prune
