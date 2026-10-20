@@ -133,7 +133,7 @@ jobs:
           severity: ${{ inputs.trivy-severity }}
           fail-on-findings: ${{ inputs.fail-on-source-findings }}
 
-      - uses: HamiltonHills/pipeline-actions/vue/build@vue/v1
+      - uses: HamiltonHills/pipeline-actions/vue/build@vue/v2
         with:
           working-directory: ${{ inputs.working-directory }}
           node-version: ${{ inputs.node-version }}

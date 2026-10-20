@@ -127,7 +127,7 @@ jobs:
 
       - name: Build and test
         id: build
-        uses: HamiltonHills/pipeline-actions/c/build@c/v1
+        uses: HamiltonHills/pipeline-actions/c/build@c/v2
         with:
           source-dir: ${{ inputs.source-dir }}
           build-type: ${{ inputs.build-type }}
@@ -150,7 +150,7 @@ jobs:
 
       - name: Package
         id: package
-        uses: HamiltonHills/pipeline-actions/c/package@c/v1
+        uses: HamiltonHills/pipeline-actions/c/package@c/v2
         with:
           build-dir: ${{ steps.build.outputs.build-dir }}
           name: ${{ inputs.package-name }}
