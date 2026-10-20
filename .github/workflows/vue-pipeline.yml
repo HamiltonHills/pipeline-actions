@@ -126,7 +126,7 @@ jobs:
       # Before npm ci so only committed files are scanned. The image scan
       # can't see npm dependencies: the image only contains the built dist/.
       - name: Source scan (npm dependencies, committed secrets)
-        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v2
         with:
           scan-type: fs
           target: ${{ inputs.working-directory }}
@@ -145,7 +145,7 @@ jobs:
           dist-dir: ${{ inputs.dist-dir }}
           artifact-name: ${{ inputs.container && 'vue-dist' || '' }}
 
-      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v2
         with:
           token: ${{ secrets.SONAR_TOKEN }}
           host-url: ${{ secrets.SONAR_HOST_URL }}
@@ -160,7 +160,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
-    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-container.yml@core/v2
     with:
       image-name: ${{ inputs.image-name }}
       context: ${{ inputs.working-directory }}
@@ -181,7 +181,7 @@ jobs:
       packages: read
       id-token: write
       attestations: read
-    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v1
+    uses: HamiltonHills/pipeline-actions/.github/workflows/core-deploy.yml@core/v2
     with:
       environment: ${{ inputs.deploy-environment }}
       deploy-script: ${{ inputs.deploy-script }}

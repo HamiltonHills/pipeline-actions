@@ -134,7 +134,7 @@ jobs:
           cmake-args: ${{ inputs.cmake-args }}
           apt-packages: ${{ inputs.apt-packages }}
 
-      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/sonar-scan@core/v2
         with:
           token: ${{ secrets.SONAR_TOKEN }}
           host-url: ${{ secrets.SONAR_HOST_URL }}
@@ -142,7 +142,7 @@ jobs:
           args: -Dsonar.cfamily.compile-commands=${{ steps.build.outputs.compile-commands }} ${{ inputs.sonar-args }}
 
       - name: Source scan (vulnerable manifests, committed secrets)
-        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v2
         with:
           scan-type: fs
           target: ${{ inputs.source-dir }}
@@ -158,13 +158,13 @@ jobs:
 
       - name: SBOM
         id: sbom
-        uses: HamiltonHills/pipeline-actions/core/sbom@core/v1
+        uses: HamiltonHills/pipeline-actions/core/sbom@core/v2
         with:
           path: ${{ steps.package.outputs.staging-dir }}
           output-file: dist/${{ inputs.package-name }}-${{ steps.version.outputs.version }}.cdx.json
 
       - name: SBOM scan
-        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v1
+        uses: HamiltonHills/pipeline-actions/core/trivy-scan@core/v2
         with:
           scan-type: sbom
           target: ${{ steps.sbom.outputs.path }}
@@ -270,7 +270,7 @@ jobs:
           name: c-package
           path: dist
 
-      - uses: HamiltonHills/pipeline-actions/core/artifactory-upload@core/v1
+      - uses: HamiltonHills/pipeline-actions/core/artifactory-upload@core/v2
         with:
           url: ${{ inputs.artifactory-url }}
           repository: ${{ inputs.artifactory-repository }}
