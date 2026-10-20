@@ -71,12 +71,23 @@ jobs:
           git push origin "$TAG"
           git push -f origin "$MAJOR"
 
+      # curl + jq rather than gh: the self-hosted runner doesn't have gh.
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          API: ${{ github.api_url }}/repos/${{ github.repository }}
           TAG: ${{ steps.validate.outputs.tag }}
           PREV: ${{ steps.validate.outputs.prev }}
         run: |
-          args=(--title "$DOMAIN v$VERSION" --generate-notes)
-          [ -n "$PREV" ] && args+=(--notes-start-tag "$PREV")
-          gh release create "$TAG" "${args[@]}"
+          gh_api() {
+            curl -fsS -X POST "$API/$1" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              --data-binary @-
+          }
+          notes=$(jq -n --arg tag "$TAG" --arg prev "$PREV" \
+              '{tag_name: $tag} + if $prev == "" then {} else {previous_tag_name: $prev} end' \
+            | gh_api releases/generate-notes | jq -r .body)
+          jq -n --arg tag "$TAG" --arg name "$DOMAIN v$VERSION" --arg body "$notes" \
+              '{tag_name: $tag, name: $name, body: $body}' \
+            | gh_api releases | jq -r '"Released \(.html_url)"' >> "$GITHUB_STEP_SUMMARY"

@@ -99,7 +99,7 @@ jobs:
       - name: Start mock Artifactory
         run: |
           # Test-only dependency, so it isn't baked into c-builder.
-          apt-get update -q && apt-get install -y -q --no-install-recommends python3-minimal >/dev/null
+          apt-get update -q && apt-get install -y -q --no-install-recommends python3 >/dev/null
           mkdir -p "$RUNNER_TEMP/artifactory"
           python3 test-fixtures/artifactory-mock/server.py 8081 "$RUNNER_TEMP/artifactory" ci-token &
           for _ in $(seq 1 20); do
