@@ -66,7 +66,7 @@ GitHub-hosted runners instead. `c-pipeline.yml` also takes
 | `c-pipeline` with `container: ghcr.io/hamiltonhills/c-builder:1` | Docker only. The toolchain comes from the image ([Running in a container](workflows/c-pipeline.md#running-in-a-container)) |
 | `c-pipeline` without a container | CMake, a C toolchain, `gh` for releases, passwordless `sudo apt-get` for `apt-packages` |
 | `core-deploy` | whatever your deploy script uses |
-| everything | bash, curl 7.76+, git, jq, coreutils, and network access to GitHub, ghcr.io and Artifactory |
+| everything | bash, curl 7.76+, git, jq, gpg (Sonar verifies its scanner), coreutils, and network access to GitHub, ghcr.io and Artifactory |
 
 The runner's user must be in the `docker` group. Trivy and Syft download
 their binaries and the Trivy database at run time, so a runner without

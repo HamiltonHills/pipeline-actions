@@ -15,6 +15,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 #             to 0.0.0-unknown)
 # gh:         the release job creates GitHub releases with it
 # curl, jq:   Artifactory upload, scripts
+# gnupg:      sonarqube-scan-action verifies the scanner's signature
 # libasan/ubsan ship with gcc (build-essential)
 # pebble:     ships in the base image outside any package; nothing here uses
 #             it, and its Go stdlib trips Trivy
@@ -30,6 +31,7 @@ RUN apt-get update \
       curl \
       ca-certificates \
       jq \
+      gnupg \
       file \
       tar \
       gzip \
