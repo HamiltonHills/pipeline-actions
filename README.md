@@ -27,7 +27,8 @@ c/package/           install to staging, tar.gz + sha256
   core-container.yml   build -> sbom -> trivy -> push -> attest   (reusable)
   core-deploy.yml      environment-gated deploy                   (reusable)
   vue-pipeline.yml     full Vue pipeline                          (reusable)
-  c-pipeline.yml       full C pipeline, releases on v* tags,
+  c-pipeline.yml       full C pipeline, releases from Run workflow
+                       or v* tags,
                        optional Artifactory upload                (reusable)
   c-builder-image.yml  build, scan and publish the c-builder image
   ci.yml               tests this library on every PR
