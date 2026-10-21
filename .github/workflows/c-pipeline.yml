@@ -246,6 +246,12 @@ jobs:
             exit 1
           fi
 
+      # No checkout here to clean the workspace, and a self-hosted runner keeps
+      # the last job's dist/. download-artifact adds to it, so dist/* would
+      # pick up another run's package.
+      - name: Start from an empty dist
+        run: rm -rf dist
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: c-package
@@ -315,6 +321,12 @@ jobs:
             echo "::error::artifactory-publish is true but these are missing: ${missing[*]}"
             exit 1
           fi
+
+      # No checkout here to clean the workspace, and a self-hosted runner keeps
+      # the last job's dist/. download-artifact adds to it, so dist/* would
+      # pick up another run's package.
+      - name: Start from an empty dist
+        run: rm -rf dist
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
