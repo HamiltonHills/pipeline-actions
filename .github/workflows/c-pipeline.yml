@@ -1,6 +1,11 @@
 # Complete pipeline for a CMake-based C project:
-#   build + test + sonar + package + sbom + trivy  ->  (on tags) GitHub release
+#   build + test + sonar + package + sbom + trivy  ->  (on release) GitHub release
 #                                                ->  (opt-in) Artifactory upload
+#
+# Two ways to release:
+#   - pass `version` from a manual run: builds that version, then tags
+#     v<version> on the built commit only if everything passed
+#   - push a v* tag (or create one in the GitHub UI) with `release: true`
 #
 # Caller job must grant: contents: write (for releases), id-token: write,
 #                        attestations: write
@@ -41,6 +46,13 @@ on:
         description: Publish a GitHub release. Only valid when triggered by a v* tag
         type: boolean
         default: false
+      version:
+        description: >
+          Release this version (e.g. 1.4.0) from a manual run on the default
+          branch: build and scan it, then tag v<version> on the built commit and
+          publish the release. Empty for normal CI
+        type: string
+        default: ''
       release-environment:
         description: Environment gating the release job (created automatically if missing)
         type: string
@@ -109,21 +121,49 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
+      # Steps run as root but the checkout belongs to the runner's user, so git
+      # refuses it ("dubious ownership") and Sonar loses blame and new-code data.
+      - name: Trust the checkout
+        if: inputs.container != ''
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # Runs before the build so a bad version input fails in seconds.
       - name: Determine version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          tag=""
+          if [ -n "$INPUT_VERSION" ]; then
+            version="$INPUT_VERSION"
+            tag="v$version"
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::version must look like 1.2.3 or 1.2.3-rc.1 (got '$version')"; exit 1
+            fi
+            if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+              echo "::error::Release from $DEFAULT_BRANCH (got $GITHUB_REF)"; exit 1
+            fi
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "::error::$tag already exists"; exit 1
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"
+            tag="$GITHUB_REF_NAME"
           else
             version="0.0.0-${GITHUB_SHA::7}"
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and test
         id: build
@@ -188,7 +228,7 @@ jobs:
 
   release:
     needs: build
-    if: inputs.release
+    if: inputs.release || inputs.version != ''
     runs-on: ${{ inputs.runs-on }}
     container: ${{ inputs.container }}
     environment: ${{ inputs.release-environment }}
@@ -198,9 +238,11 @@ jobs:
       attestations: write
     steps:
       - name: Require a version tag
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
-          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
-            echo "::error::release=true is only valid for v* tag pushes (got $GITHUB_REF)"
+          if [ -z "$TAG" ]; then
+            echo "::error::release=true is only valid for v* tag pushes or with version set (got $GITHUB_REF)"
             exit 1
           fi
 
@@ -222,15 +264,24 @@ jobs:
           subject-path: dist/*.tar.gz
           sbom-path: dist/${{ inputs.package-name }}-${{ needs.build.outputs.version }}.cdx.json
 
+      # With `version`, this also creates the tag, on the commit that was built.
+      # A release made in the GitHub UI already exists, so attach to it.
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$REPO" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --repo "$REPO" --clobber
+            echo "::notice::Release $TAG already existed; attached the package to it"
+          else
+            gh release create "$TAG" dist/* \
+              --repo "$REPO" \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --generate-notes
+          fi
 
       - name: Hand files back to the runner user
         if: always() && inputs.container != ''
@@ -280,7 +331,7 @@ jobs:
             dist/*.tar.gz
             dist/*.tar.gz.sha256
             dist/*.cdx.json
-          properties: vcs.url=${{ github.server_url }}/${{ github.repository }};vcs.revision=${{ github.sha }};vcs.ref=${{ github.ref }};version=${{ needs.build.outputs.version }};ci.run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          properties: vcs.url=${{ github.server_url }}/${{ github.repository }};vcs.revision=${{ github.sha }};vcs.ref=${{ needs.build.outputs.tag && format('refs/tags/{0}', needs.build.outputs.tag) || github.ref }};version=${{ needs.build.outputs.version }};ci.run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Hand files back to the runner user
         if: always() && inputs.container != ''

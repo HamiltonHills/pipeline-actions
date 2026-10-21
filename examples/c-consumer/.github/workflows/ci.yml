@@ -1,5 +1,6 @@
-# Everything a C team needs. PRs and main build, test, scan and package;
-# pushing a v* tag (git tag v1.2.0 && git push --tags) publishes a release.
+# Everything a C team needs. PRs and main build, test, scan and package.
+# To release: Actions -> ci -> Run workflow on main with a version (builds it,
+# then tags v<version> if everything passed). Pushing a v* tag also works.
 name: ci
 
 on:
@@ -7,6 +8,11 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without the v (e.g. 1.4.0). Empty for a normal CI run
+        required: false
 
 permissions:
   contents: read
@@ -23,13 +29,14 @@ jobs:
       # Runs on the org's self-hosted runner (the v2 default) inside the
       # toolchain image, so the runner only needs Docker.
       container: ghcr.io/hamiltonhills/c-builder:1
+      version: ${{ inputs.version }}
       release: ${{ startsWith(github.ref, 'refs/tags/v') }}
       # apt-packages: libssl-dev zlib1g-dev
       # cmake-args: -DENABLE_FOO=ON
       attest: false          # true on public repos or GitHub Enterprise Cloud
       # Upload tagged releases to Artifactory. Set the ARTIFACTORY_URL
       # variable and the ARTIFACTORY_TOKEN secret.
-      # artifactory-publish: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # artifactory-publish: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' }}
       # artifactory-url: ${{ vars.ARTIFACTORY_URL }}
       # artifactory-repository: c-releases-local
     secrets:
